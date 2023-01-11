@@ -26,7 +26,7 @@ public class BuildGrid : MonoBehaviour
     public GameObject plane;
 
     Hex centerHex;
-    Hex hoveredHex;
+    public Hex HoveredHex { get; private set; }
     BlockType[,,] blocks;
 
     void Awake()
@@ -59,13 +59,13 @@ public class BuildGrid : MonoBehaviour
             Hex tempHex = Hex.PointToHex(new(hitInfo.point.x, hitInfo.point.z), size);
             if (centerHex.IsInRange(tempHex, Range))
             {
-                hoveredHex = tempHex;
+                HoveredHex = tempHex;
                 changed = true;
             }
         }
         if(!changed)
         {
-            hoveredHex = null;
+            HoveredHex = null;
         }
     }
 
@@ -98,7 +98,7 @@ public class BuildGrid : MonoBehaviour
         DrawPlane();
 
         // Draw mouse range
-        if (hoveredHex != null)
+        if (HoveredHex != null)
         {
             Hex[] intersectedHex = Hex.GetHexIntersection(new Hex.RangeInfo[]
             {
@@ -107,7 +107,7 @@ public class BuildGrid : MonoBehaviour
                     range = Range
                 },
                 new(){
-                    center = hoveredHex,
+                    center = HoveredHex,
                     range = mouseRange - 1
                 }
             });
@@ -127,12 +127,13 @@ public class BuildGrid : MonoBehaviour
         }
 
         // Draw cell outline where mouse is.
-        if(hoveredHex != null)
+        if(HoveredHex != null)
         {
-            DrawHex(hoveredHex, Color.red);
+            DrawHex(HoveredHex, Color.red);
         }
     }
 
+    #region Drawing
     void DrawHex(Hex hex, Color color)
     {
         GL.Begin(GL.LINES);
@@ -200,4 +201,5 @@ public class BuildGrid : MonoBehaviour
 
         GL.End();
     }
+    #endregion
 }
