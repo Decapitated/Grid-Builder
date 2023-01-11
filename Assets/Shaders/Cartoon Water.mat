@@ -31,7 +31,7 @@ Material:
     - _RippleContrast: 6
     - _RippleDensity: 25
     - _RippleSpeed: 0.66666
-    - _WaveScale: 5
+    - _WaveScale: 0
     - _WaveSpeed: 0.15
     m_Colors:
     - _BaseColor: {r: 0, g: 0.25958967, b: 1, a: 0}

@@ -21,7 +21,7 @@ public class CamControl : MonoBehaviour
     void Update()
     {
         // Change camera man position.
-        if (GetMouseButtonClicked(2))
+        if (GetMouseButtonClicked(2) && buildGrid.HoveredHex != null)
         {
             Vector2 pos = buildGrid.HoveredHex.GetHexCenter(buildGrid.size);
             transform.position = new(pos.x, transform.position.y, pos.y);
