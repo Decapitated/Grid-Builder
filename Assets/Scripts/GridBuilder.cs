@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
+using Random = System.Random;
 
 struct MeshData
 {
@@ -13,18 +14,28 @@ struct MeshData
     public List<int> triangles;
 }
 
-public class Test2 : MonoBehaviour
+public class GridBuilder : MonoBehaviour
 {
     // Max vertices 65,000/mesh. Max range = 34 = 64,278 vertices; 35 = 68,058 vertices;
     [Range(0, 34)]
     public int range = 1;
-    int oldRange = -1;
+    int oldRange;
 
     [Range(0.1f, 10f)]
     public float scale;
-    float oldScale = -1f;
+    float oldScale;
+
+    [Range(0, int.MaxValue)]
+    public int seed = 0;
+    int oldSeed;
+
+    // Layer mask for raycasts.
+    public LayerMask layerMask;
+
+    public Color hoverColor = Color.green;
 
     Hex Center => new(0f, 0f);
+    public Hex HoveredHex { get; private set; }
 
     // Variables for threaded work.
     bool workStarted = false;
@@ -33,46 +44,89 @@ public class Test2 : MonoBehaviour
 
     void Awake()
     {
-        workStarted = true;
-        new Thread(Generate).Start();
+        Generate();
+    }
+
+    void Start()
+    {
+        oldRange = range;
+        oldScale = scale;
+        oldSeed = seed;
     }
 
     // Update is called once per frame
     void Update()
     {
-        if(workDone)
+        // If values change regenerate.
+        if (!workStarted && (oldScale != scale || oldRange != range || oldSeed != seed))
         {
-            Mesh mesh = new()
-            {
-                vertices = meshData.vertices.ToArray(),
-                uv = meshData.uv.ToArray(),
-                normals = meshData.normals.ToArray(),
-                triangles = meshData.triangles.ToArray()
-            };
-            if (meshData.uv2 != null) mesh.uv2 = meshData.uv2.ToArray();
-            //mesh.Optimize();
-
-            GetComponent<MeshFilter>().mesh = mesh;
-            GetComponent<MeshCollider>().sharedMesh = mesh;
-
-            workStarted = false;
-            workDone = false;
+            oldScale = scale;
+            oldRange = range;
+            oldSeed = seed;
+            Generate();
         }
+        if (workDone) WorkDone();
+
+        Ray rayOrigin = Camera.main.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hitInfo;
+        bool changed = false;
+        if (Physics.Raycast(rayOrigin, out hitInfo, Mathf.Infinity, layerMask))
+        {
+            Hex tempHex = Hex.PointToHex(hitInfo.point, scale);
+            if (Center.IsInRange(tempHex, range))
+            {
+                HoveredHex = tempHex;
+                changed = true;
+            }
+        }
+        if (!changed)
+        {
+            HoveredHex = null;
+        }
+    }
+
+
+    // If generation is done, assign to mesh.
+    void WorkDone()
+    {
+        Mesh mesh = new()
+        {
+            vertices = meshData.vertices.ToArray(),
+            uv = meshData.uv.ToArray(),
+            normals = meshData.normals.ToArray(),
+            triangles = meshData.triangles.ToArray()
+        };
+        if (meshData.uv2 != null) mesh.uv2 = meshData.uv2.ToArray();
+        mesh.Optimize();
+
+        GetComponent<MeshFilter>().mesh = mesh;
+        GetComponent<MeshCollider>().sharedMesh = mesh;
+
+        workStarted = false;
     }
 
     void Generate()
     {
+        workStarted = true;
+        workDone = false;
+        new Thread(ThreadGenerate).Start();
+    }
+
+    void ThreadGenerate()
+    {
+        print("Generating grid...");
         var random = GenerateRandom();
         random = SplitShapes(random);
         meshData = ObjectArrayToMesh(random);
         workDone = true;
+        print("Finished generating!");
     }
 
     List<object> GenerateRandom()
     {
         List<object> quads = new();
         List<Triangle> usedTriangles = new();
-        var rand = new System.Random();
+        var rand = new Random(seed);
         foreach (var cell in Center.GetHexSpiralInRange(range))
         {
             for (int i = 0; i < 6; i++)
@@ -206,26 +260,53 @@ public class Test2 : MonoBehaviour
 
     #region Drawing
 
-    void DrawQuad(Quad quad)
+    static Material lineMaterial;
+    static void CreateLineMaterial()
     {
-        var points = quad.GetPoints2();
-        Gizmos.DrawLine(points[0], points[1]);
-        Gizmos.DrawLine(points[1], points[2]);
-        Gizmos.DrawLine(points[2], points[3]);
-        Gizmos.DrawLine(points[3], points[0]);
+        if (!lineMaterial)
+        {
+            // Unity has a built-in shader that is useful for drawing
+            // simple colored things.
+            Shader shader = Shader.Find("Hidden/Internal-Colored");
+            lineMaterial = new Material(shader);
+            lineMaterial.hideFlags = HideFlags.HideAndDontSave;
+            // Turn on alpha blending
+            lineMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            lineMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            // Turn backface culling off
+            lineMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+            // Turn off depth writes
+            lineMaterial.SetInt("_ZWrite", 0);
+        }
     }
 
-    void DrawTriangle(Triangle triangle)
+    void OnRenderObject()
     {
-        var a = PointToWorld(triangle.A);
-        var b = PointToWorld(triangle.B);
-        var c = PointToWorld(triangle.C);
-        Gizmos.DrawLine(a, b);
-        Gizmos.DrawLine(b, c);
-        Gizmos.DrawLine(c, a);
+        CreateLineMaterial();
+        // set the current material
+        lineMaterial.SetPass(0);
+
+        if (HoveredHex is not null) DrawSolidHex(HoveredHex, hoverColor);
+    }
+
+    void DrawSolidHex(Hex hex, Color color)
+    {
+        Vector2 corner2D = hex.GetHexCorner(scale, 0); ;
+        Vector3 corner = transform.position + new Vector3(corner2D.X, 0, corner2D.Y);
+
+        GL.Begin(GL.QUADS);
+        GL.Color(color);
+        GL.Vertex3(corner.x, corner.y, corner.z);
+        for (int i = 5; i >= 0; i--)
+        {
+            corner2D = hex.GetHexCorner(scale, i);
+            corner = transform.position + new Vector3(corner2D.X, 0, corner2D.Y);
+            GL.Vertex3(corner.x, corner.y, corner.z);
+            if (i == 3) GL.Vertex3(corner.x, corner.y, corner.z);
+        }
+
+        GL.End();
     }
 
     #endregion
-
-    Vector3 PointToWorld(Vector2 point) => transform.position + (Vector3)point;
 }

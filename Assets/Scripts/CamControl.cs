@@ -9,7 +9,7 @@ public class CamControl : MonoBehaviour
     public float scrollScale = 0.1f;
     public float clickLength = 0.333f;
 
-    public BuildGrid buildGrid;
+    public GridBuilder buildGrid;
 
     Camera camera;
 
@@ -28,10 +28,10 @@ public class CamControl : MonoBehaviour
     void Update()
     {
         // Change camera man position.
-        if (GetMouseButtonClicked(2) && buildGrid.HoveredHex != null)
+        if (GetMouseButtonClicked(2) && buildGrid.HoveredHex is not null)
         {
             start = transform.position;
-            Vector2 pos = buildGrid.HoveredHex.GetHexCenter(buildGrid.size);
+            Vector2 pos = buildGrid.HoveredHex.GetHexCenter(buildGrid.scale);
             end = new(pos.X, 0, pos.Y);
             moving = true;
             startTime = Time.time;
@@ -53,7 +53,7 @@ public class CamControl : MonoBehaviour
         // Move camera man.
         if (Input.GetMouseButton(0))
         {
-            float maxDistance = Hex.GetHexMaxSide(buildGrid.Range, buildGrid.size);
+            float maxDistance = Hex.GetHexMaxSide(buildGrid.range, buildGrid.scale);
             transform.Translate(-mouseMove.x * Time.deltaTime * Vector3.right, Space.Self);
             transform.Translate(-mouseMove.y * Time.deltaTime * Vector3.up, Space.World);
             transform.position = new(
