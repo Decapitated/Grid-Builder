@@ -101,8 +101,9 @@ public class GridBuilder : MonoBehaviour
 
         GetComponent<MeshFilter>().mesh = mesh;
         GetComponent<MeshCollider>().sharedMesh = mesh;
-
+        meshData = new();
         workStarted = false;
+        workDone = false;
     }
 
     void Generate()
