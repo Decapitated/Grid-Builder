@@ -1,12 +1,12 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Hex
 {
     static readonly Hex[] axial_direction_vectors = new Hex[] {
-        new Hex(+1, 0), new Hex(+1, -1), new Hex(0, -1),
-        new Hex(-1, 0), new Hex(-1, +1), new Hex(0, +1)
+        new(1, -1), new(0, -1), new(-1, 0),
+        new(-1, 1), new(0, 1), new(1, 0)
     };
 
     public Hex(float q, float r)
@@ -22,10 +22,11 @@ public class Hex
     public float S { get => -Q - R; }
 
     public static float AxialDistance(Hex a, Hex b) => (Mathf.Abs(a.Q - b.Q) + Mathf.Abs(a.Q + a.R - b.Q - b.R) + Mathf.Abs(a.R - b.R)) / 2f;
-    public Hex AxialNeighbor(Hex hex, int direction) => AxialAdd(hex, AxialDirection(direction));
+    public static Hex AxialNeighbor(Hex hex, int direction) => AxialAdd(hex, AxialDirection(direction));
+    public Hex GetNeighbor(int direction) => AxialNeighbor(this, direction);
 
-    public Hex[] GetHexInRange(int range) => GetHexInRange(this, range);
-    public static Hex[] GetHexInRange(Hex center, int range)
+    public List<Hex> GetHexInRange(int range) => GetHexInRange(this, range);
+    public static List<Hex> GetHexInRange(Hex center, int range)
     {
         var results = new List<Hex>();
         for(int q = -range; q <= range; q++)
@@ -35,17 +36,46 @@ public class Hex
                 results.Add(AxialAdd(center, new(q, r)));
             }
         }
-        return results.ToArray();
+        return results;
     }
 
-    public bool IsInRange(Hex other, int range) => Hex.AxialDistance(this, other) <= range;
+    public List<Hex> GetHexAtRange(int range) => GetHexAtRange(this, range);
+    public static List<Hex> GetHexAtRange(Hex center, int range)
+    {
+        var results = new List<Hex>();
+        var hex = AxialAdd(center, Scale(AxialDirection(4), range));
+        for (int i = 0; i < 6; i++)
+        {
+            for (int j = 0; j < range; j++)
+            {
+                results.Add(hex);
+                hex = AxialNeighbor(hex, i);
+            }
+        }
+        return results;
+    }
+
+    public List<Hex> GetHexSpiralInRange(int range) => GetHexSpiralInRange(this, range);
+    public static List<Hex> GetHexSpiralInRange(Hex center, int range)
+    {
+        var results = new List<Hex>{ center };
+        for (int i = 1; i <= range; i++)
+        {
+            results.AddRange(center.GetHexAtRange(i));
+        }
+        return results;
+    }
+    
+    public int GetNumHexInRange(int range) => 1 + 3 * range * (range + 1);
+
+    public bool IsInRange(Hex other, int range) => AxialDistance(this, other) <= range;
 
     public struct RangeInfo
     {
         public Hex center;
         public int range;
     }
-    public static Hex[] GetHexIntersection(RangeInfo[] ranges)
+    public static List<Hex> GetHexIntersection(RangeInfo[] ranges)
     {
         HexArrays hexArrays = GetHexArrays(ranges);
         var MaxQ = Mathf.Min(hexArrays.MinQ.ToArray());
@@ -63,7 +93,7 @@ public class Hex
                 results.Add(new(q, r));
             }
         }
-        return results.ToArray();
+        return results;
     }
 
     public Vector2 GetHexCenter(float size)
@@ -75,17 +105,43 @@ public class Hex
 
     public static Hex PointToHex(Vector2 point, float size)
     {
-        var q = (2f / 3 * point.x) / size;
-        var r = (-1f / 3 * point.x + Mathf.Sqrt(3) / 3 * point.y) / size;
+        var q = (2f / 3 * point.X) / size;
+        var r = (-1f / 3 * point.X + Mathf.Sqrt(3) / 3 * point.Y) / size;
         return Round(new(q, r));
     }
 
-    public Vector2 GetHexCorner(float size, int i)
+    public Vector2 GetHexCorner(float size, int i) => GetHexCorner(GetHexCenter(size), size, i);
+
+    public Vector2 GetHexCorner(Vector2 center, float size, int i)
     {
-        Vector2 center = GetHexCenter(size);
         var angle_deg = 60 * i;
         var angle_rad = Mathf.PI / 180 * angle_deg;
-        return new(center.x + size * Mathf.Cos(angle_rad), center.y + size * Mathf.Sin(angle_rad));
+        return new(center.X + size * Mathf.Cos(-angle_rad), center.Y + size * Mathf.Sin(-angle_rad));
+    }
+
+    public Triangle GetTriangle(float size, int i)
+    {
+        Vector2 a = GetHexCenter(size);
+        Vector2 b = GetHexCorner(a, size, i);
+        Vector2 c = GetHexCorner(a, size, (i + 1) % 6);
+        return new(a, b, c);
+    }
+
+    public Triangle GetOppositeTriangle(float size, int i)
+    {
+        Vector2 a = GetHexCenter(size);
+        Vector2 b = GetHexCorner(a, size, (i + 3) % 6);
+        Vector2 c = GetHexCorner(a, size, (i + 4) % 6);
+        return new(a, b, c);
+    }
+
+    public int PointToCorner(float size, Vector2 point)
+    {
+        for(int i = 0; i < 6; i++)
+        {
+            if (point == GetHexCorner(size, i)) return i;
+        }
+        return -1;
     }
 
     public static float GetHexMaxSide(int range, float size)
@@ -94,7 +150,7 @@ public class Hex
         return diameter * (Mathf.Sqrt(3) * size);
     }
     #endregion
-
+    
     #region Private
 
     struct HexArrays
@@ -149,6 +205,6 @@ public class Hex
         }
         return new(q, r);
     }
-
+    static Hex Scale(Hex hex, float factor) => new(hex.Q * factor, hex.R * factor);
     #endregion
 }
