@@ -18,7 +18,7 @@ public class Face : MonoBehaviour
 
     void Update()
     {
-        if(Toggled || (gridBuilder.MouseClosestFace != null && gridBuilder.MouseClosestFace == id))
+        if((gridBuilder.MouseClosestFace != null && gridBuilder.MouseClosestFace == id) || Toggled)
             renderer.sharedMaterial.SetFloat("_Active", 1);
         else
             renderer.sharedMaterial.SetFloat("_Active", 0);
