@@ -94,6 +94,11 @@ public class Triangle : System.IEquatable<Triangle>
 
     public List<Vector2> GetPoints() => new(){ A, B, C };
 
+    public float GetArea() => GetArea(A, B, C);
+    public static float GetArea(Vector2 a, Vector2 b, Vector2 c) => Mathf.Abs((a.X * (b.Y - c.Y) + b.X * (c.Y - a.Y) + c.X * (a.Y - b.Y)) / 2f);
+
+    public Vector2 GetCenter() => (A + B + C) / 3f;
+
     public bool CheckAngles(float upper, float lower)
     {
         foreach (float angle in GetAngles())
@@ -101,6 +106,15 @@ public class Triangle : System.IEquatable<Triangle>
             if (angle > upper || angle < lower) return false;
         }
         return true;
+    }
+
+    public bool IsPointInside(Vector2 point)
+    {
+        float area_1 = GetArea(A, B, C);
+        float area_2 = GetArea(point, B, C);
+        float area_3 = GetArea(A, point, C);
+        float area_4 = GetArea(A, B, point);
+        return area_1 == (area_2 + area_3 + area_4);
     }
 
     public bool IsPointInCircumCircle(Vector2 point)
@@ -147,7 +161,7 @@ public class Triangle : System.IEquatable<Triangle>
     public List<Quad> Split()
     {
         List<Quad> quads = new();
-        Vector2 center = (A + B + C) / 3f;
+        Vector2 center = GetCenter();
         quads.Add(new(
             new(A, MidA, center),
             new(A, center, MidC)));

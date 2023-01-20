@@ -1,8 +1,9 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using UnityEngine;
+using static UnityEngine.Mesh;
 using Random = System.Random;
 
 struct MeshData
@@ -29,18 +30,27 @@ public class GridBuilder : MonoBehaviour
     public int seed = 0;
     int oldSeed;
 
+    public int read = 1;
+
     // Layer mask for raycasts.
     public LayerMask layerMask;
 
     public Color hoverColor = Color.green;
 
+    public GameObject facePrefab;
+    public Shader faceShader;
+
     Hex Center => new(0f, 0f);
-    public Hex HoveredHex { get; private set; }
+
+    public Vector3 MouseHover { get; private set; }
+    public Vector2 MouseClosestFace { get; private set; }
 
     // Variables for threaded work.
     bool workStarted = false;
     bool workDone = false;
-    MeshData meshData;
+    MeshData graphMeshData;
+    //MeshData dualGraphMeshData;
+    Dictionary<Vector2, object> dualGraph;
 
     void Awake()
     {
@@ -67,41 +77,57 @@ public class GridBuilder : MonoBehaviour
         }
         if (workDone) WorkDone();
 
-        Ray rayOrigin = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Ray rayOrigin = Camera.main.ScreenPointToRay(Input.mousePosition, Camera.MonoOrStereoscopicEye.Mono);
         RaycastHit hitInfo;
-        bool changed = false;
         if (Physics.Raycast(rayOrigin, out hitInfo, Mathf.Infinity, layerMask))
         {
-            Hex tempHex = Hex.PointToHex(hitInfo.point, scale);
-            if (Center.IsInRange(tempHex, range))
+            MouseHover = hitInfo.point;
+            Vector2 hitPoint = MouseHover;
+            Vector2 closestFace = null;
+            float champDist = float.PositiveInfinity;
+            foreach (var pair in dualGraph)
             {
-                HoveredHex = tempHex;
-                changed = true;
+                if (closestFace is null)
+                {
+                    closestFace = pair.Key;
+                    champDist = hitPoint.Distance(closestFace);
+                    continue;
+                }
+                float tempDist = hitPoint.Distance(pair.Key);
+                if (tempDist < champDist)
+                {
+                    champDist = tempDist;
+                    closestFace = pair.Key;
+                }
             }
-        }
-        if (!changed)
-        {
-            HoveredHex = null;
+            MouseClosestFace = closestFace;
         }
     }
-
 
     // If generation is done, assign to mesh.
     void WorkDone()
     {
-        Mesh mesh = new()
-        {
-            vertices = meshData.vertices.ToArray(),
-            uv = meshData.uv.ToArray(),
-            normals = meshData.normals.ToArray(),
-            triangles = meshData.triangles.ToArray()
-        };
-        if (meshData.uv2 != null) mesh.uv2 = meshData.uv2.ToArray();
+        Mesh mesh = MeshDataToMesh(graphMeshData);
         mesh.Optimize();
 
         GetComponent<MeshFilter>().mesh = mesh;
         GetComponent<MeshCollider>().sharedMesh = mesh;
-        meshData = new();
+        graphMeshData = new(); // Garbage collect. may change?
+        
+        // Clear children.
+        foreach(Transform child in transform) Destroy(child.gameObject);
+        if(dualGraph is not null)
+            foreach(var pair in dualGraph)
+            {
+                GameObject faceObj = Instantiate(facePrefab, transform, false);
+                faceObj.name = "Face";
+                faceObj.GetComponent<MeshFilter>().mesh = MeshDataToMesh(ObjectToMesh(pair.Value));
+                faceObj.GetComponent<Renderer>().material = new Material(faceShader);
+                Face faceScript = faceObj.GetComponent<Face>();
+                faceScript.gridBuilder = this;
+                faceScript.id = pair.Key;
+            }
+
         workStarted = false;
         workDone = false;
     }
@@ -118,10 +144,13 @@ public class GridBuilder : MonoBehaviour
         print("Generating grid...");
         var random = GenerateRandom();
         random = SplitShapes(random);
-        meshData = ObjectArrayToMesh(random);
+        graphMeshData = ObjectArrayToMesh(random);
+        dualGraph = GetDualGraph(random);
         workDone = true;
         print("Finished generating!");
     }
+
+    #region Graph Generation
 
     List<object> GenerateRandom()
     {
@@ -178,12 +207,97 @@ public class GridBuilder : MonoBehaviour
         List<object> quads = new();
         foreach (var shape in shapes)
         {
-            if(shape.GetType() == typeof(Quad))
-                quads.AddRange(((Quad)shape).Split());
-            else if (shape.GetType() == typeof(Triangle))
-                quads.AddRange(((Triangle)shape).Split());
+            if(shape is Quad quad) quads.AddRange(quad.Split());
+            else if (shape is Triangle triangle) quads.AddRange(triangle.Split());
         }
         return quads;
+    }
+
+    Dictionary<Vector2, object> GetDualGraph(List<object> shapes)
+    {
+        var vertexToShapes = GetVertexToShapes(shapes);
+
+        Dictionary<Vector2, object> dualGraphShapes = new();
+
+        foreach(var pair in vertexToShapes)
+        {
+            var sharedShapes = pair.Value;
+            List<Vector2> centerPoints = new();
+            foreach(var shape in sharedShapes)
+            {
+                centerPoints.Add(GetShapeCenter(shape));
+            }
+            var shapeCenter = GetCenter(centerPoints);
+            if (centerPoints.Count == 3)
+            {
+                if (shapeCenter != pair.Key) continue;
+            }
+            dualGraphShapes.Add(shapeCenter, new Polygon(centerPoints, shapeCenter));
+        }
+        return dualGraphShapes;
+    }
+
+    Vector2 GetCenter(List<Vector2> points)
+    {
+        Vector2 temp = new(0, 0);
+        foreach(var point in points)
+        {
+            temp += point;
+        }
+        return temp / points.Count;
+    }
+
+    Dictionary<Vector2, List<object>> GetVertexToShapes(List<object> shapes)
+    {
+        var vertexToShapes = new Dictionary<Vector2, List<object>>();
+        foreach(var shape in shapes)
+        {
+            foreach(var vertex in GetShapeVertices(shape))
+            {
+                if (!vertexToShapes.ContainsKey(vertex))
+                {
+                    vertexToShapes[vertex] = new();
+                }
+                vertexToShapes[vertex].Add(shape);
+            }
+        }
+        foreach(var pair in vertexToShapes.ToList())
+        {
+            if (pair.Value.Count < 3) vertexToShapes.Remove(pair.Key);
+        }
+        return vertexToShapes;
+    }
+
+    Vector2 GetShapeCenter(object shape)
+    {
+        if (shape is Quad quad) return quad.GetCenter();
+        if (shape is Triangle triangle) return triangle.GetCenter();
+        return new(1000, -1000);
+    }
+
+    List<Vector2> GetShapeVertices(object shape)
+    {
+        List<Vector2> points = new();
+        if (shape is Quad quad) points.AddRange(quad.GetPoints());
+        else if (shape is Triangle triangle) points.AddRange(triangle.GetPoints());
+        return points;
+    }
+
+    #endregion
+
+    #region Mesh
+
+    Mesh MeshDataToMesh(MeshData meshData)
+    {
+        Mesh mesh = new()
+        {
+            vertices = meshData.vertices.ToArray(),
+            uv = meshData.uv.ToArray(),
+            normals = meshData.normals.ToArray(),
+            triangles = meshData.triangles.ToArray()
+        };
+        if (meshData.uv2 is not null) mesh.uv2 = meshData.uv2.ToArray();
+        return mesh;
     }
 
     MeshData ObjectArrayToMesh(List<object> shapes)
@@ -199,42 +313,74 @@ public class GridBuilder : MonoBehaviour
 
         foreach (object shape in shapes)
         {
-            if (shape.GetType() == typeof(Quad))
-            {
-                var quad = (Quad)shape;
-                var points = quad.GetPoints();
-                var aIndex = AddPointToMeshArrays(points[0], meshData, 0, typeof(Quad));
-                var bIndex = AddPointToMeshArrays(points[1], meshData, 1, typeof(Quad));
-                var cIndex = AddPointToMeshArrays(points[2], meshData, 2, typeof(Quad));
-                var dIndex = AddPointToMeshArrays(points[3], meshData, 3, typeof(Quad));
+            AddShapeToMeshArrays(shape, meshData);
+        }
 
-                meshData.triangles.Add(aIndex);
-                meshData.triangles.Add(bIndex);
-                meshData.triangles.Add(cIndex);
+        return meshData;
+    }
 
-                meshData.triangles.Add(cIndex);
-                meshData.triangles.Add(dIndex);
-                meshData.triangles.Add(aIndex);
-            }
-            else if (shape.GetType() == typeof(Triangle))
+    MeshData ObjectToMesh(object shape)
+    {
+        MeshData meshData = new MeshData()
+        {
+            vertices = new(),
+            uv = new(),
+            uv2 = new(),
+            normals = new(),
+            triangles = new()
+        };
+
+        AddShapeToMeshArrays(shape, meshData);
+
+        return meshData;
+    }
+
+    void AddShapeToMeshArrays(object shape, MeshData meshData)
+    {
+        if (shape is Polygon polygon)
+        {
+            foreach (var triangle in polygon.GetTriangles())
             {
-                var triangle = (Triangle)shape;
-                var aIndex = AddPointToMeshArrays(triangle.A, meshData, 0, typeof(Triangle));
-                var bIndex = AddPointToMeshArrays(triangle.B, meshData, 1, typeof(Triangle));
-                var cIndex = AddPointToMeshArrays(triangle.C, meshData, 2, typeof(Triangle));
+                var aIndex = AddPointToMeshArrays(triangle.A, meshData, 0, typeof(Quad));
+                var bIndex = AddPointToMeshArrays(triangle.B, meshData, 1, typeof(Quad));
+                var cIndex = AddPointToMeshArrays(triangle.C, meshData, 4, typeof(Quad));
 
                 meshData.triangles.Add(aIndex);
                 meshData.triangles.Add(bIndex);
                 meshData.triangles.Add(cIndex);
             }
         }
+        else if (shape is Quad quad)
+        {
+            var points = quad.GetPoints(); // We dont want the points to be sorted
+            var aIndex = AddPointToMeshArrays(points[0], meshData, 0, typeof(Quad));
+            var bIndex = AddPointToMeshArrays(points[1], meshData, 1, typeof(Quad));
+            var cIndex = AddPointToMeshArrays(points[2], meshData, 2, typeof(Quad));
+            var dIndex = AddPointToMeshArrays(points[3], meshData, 3, typeof(Quad));
 
-        return meshData;
+            meshData.triangles.Add(aIndex);
+            meshData.triangles.Add(bIndex);
+            meshData.triangles.Add(cIndex);
+
+            meshData.triangles.Add(cIndex);
+            meshData.triangles.Add(dIndex);
+            meshData.triangles.Add(aIndex);
+        }
+        else if (shape is Triangle triangle)
+        {
+            var aIndex = AddPointToMeshArrays(triangle.A, meshData, 0, typeof(Triangle));
+            var bIndex = AddPointToMeshArrays(triangle.B, meshData, 1, typeof(Triangle));
+            var cIndex = AddPointToMeshArrays(triangle.C, meshData, 2, typeof(Triangle));
+
+            meshData.triangles.Add(aIndex);
+            meshData.triangles.Add(bIndex);
+            meshData.triangles.Add(cIndex);
+        }
     }
 
     readonly Vector2[] uvQuadCoords = new Vector2[]
     {
-        new(0, 1), new(1, 1), new(1, 0), new(0, 0)
+        new(0, 1), new(1, 1), new(1, 0), new(0, 0), new(0.5f, 0.5f)
     };
     readonly Vector2[] uvTriangleCoords = new Vector2[]
     {
@@ -258,6 +404,8 @@ public class GridBuilder : MonoBehaviour
         }
         return meshData.vertices.Count - 1;
     }
+
+    #endregion
 
     #region Drawing
 
@@ -287,7 +435,7 @@ public class GridBuilder : MonoBehaviour
         // set the current material
         lineMaterial.SetPass(0);
 
-        if (HoveredHex is not null) DrawSolidHex(HoveredHex, hoverColor);
+        //if (HoveredHex is not null) DrawSolidHex(HoveredHex, hoverColor);
     }
 
     void DrawSolidHex(Hex hex, Color color)

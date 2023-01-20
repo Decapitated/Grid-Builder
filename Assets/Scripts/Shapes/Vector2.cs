@@ -13,7 +13,7 @@ public class Vector2 : System.IEquatable<Vector2>
         this.X = x; this.Y = y;
     }
 
-    public float Distance(Vector2 other) => Mathf.Sqrt( Mathf.Pow(X - other.X, 2) + Mathf.Pow(Y - other.Y, 2));
+    public float Distance(Vector2 other) => Mathf.Sqrt(Mathf.Pow(X - other.X, 2) + Mathf.Pow(Y - other.Y, 2));
 
     public float GetAngle(Vector2 other)
     {
@@ -51,7 +51,7 @@ public class Vector2 : System.IEquatable<Vector2>
     //public static Vector2 operator /(Vector2 lhs, Vector2 rhs) => new(lhs.X / rhs.X, lhs.Y / rhs.Y);
     public static Vector2 operator /(Vector2 lhs, float value) => new(lhs.X / value, lhs.Y / value);
 
-    public override int GetHashCode() => HashCode.Combine(X.GetHashCode(), Y.GetHashCode());
+    public override int GetHashCode() => HashCode.Combine(Mathf.RoundToInt(X * 100).GetHashCode(), Mathf.RoundToInt(Y * 100).GetHashCode());
 
     public override string ToString() => "("+Math.Round(X, 2)+", "+Math.Round(Y, 2)+")";
 

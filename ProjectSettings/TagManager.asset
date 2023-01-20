@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 2
   tags:
   - GridPlane
+  - DualGraph
   layers:
   - Default
   - TransparentFX

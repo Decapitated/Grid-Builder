@@ -496,7 +496,7 @@ public class BuildGrid : MonoBehaviour
 
         foreach (Quad quad in quads)
         {
-            var points = quad.GetPoints2();
+            var points = quad.GetPoints();
             if (points.Count < 4) Debug.Log("less than 4 points? "+points.Count);
             var aIndex = AddPointToMeshArrays(points[0], meshData, 0, typeof(Quad));
             var bIndex = AddPointToMeshArrays(points[1], meshData, 1, typeof(Quad));
@@ -530,7 +530,7 @@ public class BuildGrid : MonoBehaviour
             if (shape.GetType() == typeof(Quad))
             {
                 var quad = (Quad)shape;
-                var points = quad.GetPoints2();
+                var points = quad.GetPoints();
                 var aIndex = AddPointToMeshArrays(points[0], meshData, 0, typeof(Quad));
                 var bIndex = AddPointToMeshArrays(points[1], meshData, 1, typeof(Quad));
                 var cIndex = AddPointToMeshArrays(points[2], meshData, 2, typeof(Quad));
@@ -772,7 +772,7 @@ public class BuildGrid : MonoBehaviour
         GL.Begin(GL.LINE_STRIP);
         GL.Color(color);
 
-        List<Vector2> points = quad.GetPoints2();
+        List<Vector2> points = quad.GetPoints();
         var firstPos = transform.position + new Vector3(points[0].X, 0, points[0].Y);
         foreach (var point in points)
         {
@@ -789,7 +789,7 @@ public class BuildGrid : MonoBehaviour
         GL.Begin(GL.QUADS);
         GL.Color(color);
 
-        List<Vector2> points = quad.GetPoints2();
+        List<Vector2> points = quad.GetPoints();
         foreach (var point in points)
         {
             var pos = transform.position + new Vector3(point.X, 0, point.Y);

@@ -28,11 +28,10 @@ public class CamControl : MonoBehaviour
     void Update()
     {
         // Change camera man position.
-        if (GetMouseButtonClicked(2) && buildGrid.HoveredHex is not null)
+        if (GetMouseButtonClicked(2) && buildGrid.MouseClosestFace is not null)
         {
             start = transform.position;
-            Vector2 pos = buildGrid.HoveredHex.GetHexCenter(buildGrid.scale);
-            end = new(pos.X, 0, pos.Y);
+            end = buildGrid.MouseClosestFace;
             moving = true;
             startTime = Time.time;
             journeyLength = Vector3.Distance(start, end);
