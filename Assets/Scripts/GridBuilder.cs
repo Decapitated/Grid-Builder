@@ -107,6 +107,7 @@ public class GridBuilder : MonoBehaviour
             }
             MouseClosestFace = closestFace;
         }
+        else if (MouseClosestFace is not null) MouseClosestFace = null;
     }
 
     #region ThreadWork

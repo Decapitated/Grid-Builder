@@ -16,7 +16,7 @@ public class Face : MonoBehaviour
 
     void Update()
     {
-        if(gridBuilder.MouseClosestFace == id) renderer.sharedMaterial.SetFloat("_Active", 1);
+        if(gridBuilder.MouseClosestFace != null && gridBuilder.MouseClosestFace == id) renderer.sharedMaterial.SetFloat("_Active", 1);
         else renderer.sharedMaterial.SetFloat("_Active", 0);
     }
 }
