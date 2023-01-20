@@ -9,6 +9,8 @@ public class Face : MonoBehaviour
 
     Renderer renderer;
 
+    bool Toggled => gridBuilder.ToggledFaces.Contains(id);
+
     void Start()
     {
         renderer = GetComponent<Renderer>();
@@ -16,7 +18,9 @@ public class Face : MonoBehaviour
 
     void Update()
     {
-        if(gridBuilder.MouseClosestFace != null && gridBuilder.MouseClosestFace == id) renderer.sharedMaterial.SetFloat("_Active", 1);
-        else renderer.sharedMaterial.SetFloat("_Active", 0);
+        if(Toggled || (gridBuilder.MouseClosestFace != null && gridBuilder.MouseClosestFace == id))
+            renderer.sharedMaterial.SetFloat("_Active", 1);
+        else
+            renderer.sharedMaterial.SetFloat("_Active", 0);
     }
 }

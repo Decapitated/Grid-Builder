@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -21,15 +22,13 @@ public class GridBuilder : MonoBehaviour
     public int range = 1;
     int oldRange;
 
-    [Range(0.1f, 10f)]
+    [Range(0.1f, 100f)]
     public float scale;
     float oldScale;
 
     [Range(0, int.MaxValue)]
     public int seed = 0;
     int oldSeed;
-
-    public int read = 1;
 
     // Layer mask for raycasts.
     public LayerMask layerMask;
@@ -41,8 +40,10 @@ public class GridBuilder : MonoBehaviour
 
     Hex Center => new(0f, 0f);
 
+    public float clickLength = 0.333f;
     public Vector3 MouseHover { get; private set; }
     public Vector2 MouseClosestFace { get; private set; }
+    public HashSet<Vector2> ToggledFaces { get; private set; } = new ();
 
     // Variables for threaded work.
     bool workStarted = false;
@@ -53,6 +54,7 @@ public class GridBuilder : MonoBehaviour
 
     void Awake()
     {
+        graphMeshData = new();
         Generate();
     }
 
@@ -77,6 +79,18 @@ public class GridBuilder : MonoBehaviour
         if (workDone) WorkDone();
 
         Raycast();
+
+        if (GetMouseButtonClicked(0))
+        {
+            if (ToggledFaces.Contains(MouseClosestFace))
+            {
+                ToggledFaces.Remove(MouseClosestFace);
+            }
+            else
+            {
+                ToggledFaces.Add(MouseClosestFace);
+            }
+        }
     }
 
     void Raycast()
@@ -110,16 +124,36 @@ public class GridBuilder : MonoBehaviour
         else if (MouseClosestFace is not null) MouseClosestFace = null;
     }
 
+    // Checks if the button was clicked within the set length of time.
+    Dictionary<int, float> downStartTimes = new();
+    public bool GetMouseButtonClicked(int button)
+    {
+        float currentTime = Time.fixedTime;
+        if (Input.GetMouseButtonDown(button)) downStartTimes[button] = currentTime;
+        if (Input.GetMouseButtonUp(button))
+        {
+            float clickTime = currentTime - downStartTimes[button];
+            if (clickTime <= clickLength)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     #region ThreadWork
 
     void WorkDone()
     {
-        Mesh mesh = MeshDataToMesh(graphMeshData);
-        mesh.Optimize();
+        if(graphMeshData.vertices is not null)
+        {
+            Mesh mesh = MeshDataToMesh(graphMeshData);
+            mesh.Optimize();
 
-        GetComponent<MeshFilter>().mesh = mesh;
-        GetComponent<MeshCollider>().sharedMesh = mesh;
-        graphMeshData = new(); // Garbage collect. may change?
+            GetComponent<MeshFilter>().mesh = mesh;
+            GetComponent<MeshCollider>().sharedMesh = mesh;
+            graphMeshData = new(); // Garbage collect. may change?
+        }
         
         // Clear children.
         foreach(Transform child in transform) Destroy(child.gameObject);
@@ -151,7 +185,12 @@ public class GridBuilder : MonoBehaviour
         print("Generating grid...");
         var random = GenerateRandom();
         var split = SplitShapes(random);
-        //SquareQuads(split);
+        /* Sorta works. but not really. Triangles disappear.
+        var squared = SquareQuads(split);
+        for(int i = 1; i < 25; i++)
+        {
+            squared = SquareQuads(squared);
+        }*/
         graphMeshData = ObjectArrayToMesh(new(split));
         dualGraph = GetDualGraph(new(split));
         workDone = true;
@@ -247,38 +286,44 @@ public class GridBuilder : MonoBehaviour
         return dualGraphShapes;
     }
 
-    void SquareQuads(List<Quad> quads)
+    List<Quad> SquareQuads(List<Quad> quads)
     {
-        for (int n = 0; n < 50; n++)
+        Dictionary<Vector2, Vector2> accumulations = new();
+        Dictionary<Vector2, int> vertexToNum = new();
+        foreach (var quad in quads)
         {
-            Dictionary<Vector2, Vector2> accumulations = new();
-            foreach (var quad in quads)
+            List<Vector2> squaredQuadPoints = SquareQuad(quad);
+            List<Vector2> quadPoints = quad.GetPoints(true);
+            for (int i = 0; i < 4; i++)
             {
-                List<Vector2> quadPoints = quad.GetPoints();
-                List<Vector2> squaredQuadPoints = SquareQuad(quad);
-                print("Square points: " + squaredQuadPoints.Count);
-                List<Vector2> newPoints = new();
-                for (int i = 0; i < 4; i++)
+                Vector2 moveVec = squaredQuadPoints[i] - quadPoints[i];
+                if (accumulations.ContainsKey(quadPoints[i]))
                 {
-                    Vector2 moveVec = squaredQuadPoints[i] - quadPoints[i];
-                    if (accumulations.ContainsKey(quadPoints[i]))
-                        accumulations[quadPoints[i]] = accumulations[quadPoints[i]] + moveVec;
-                    else
-                        accumulations.Add(quadPoints[i], moveVec);
+                    accumulations[quadPoints[i]] = accumulations[quadPoints[i]] + moveVec;
+                    vertexToNum[quadPoints[i]]++;
                 }
-            }
-            List<Quad> temp = new();
-            foreach(var quad in quads)
-            {
-                var points = quad.GetPoints();
-                for (int i = 0; i < 4; i++)
+                else
                 {
-                    points[i] = points[i] + accumulations[points[i]];
+                    accumulations.Add(quadPoints[i], moveVec);
+                    vertexToNum.Add(quadPoints[i], 1);
                 }
-                temp.Add(new(new(points[0], points[1], points[2]), new(points[2], points[3], points[0])));
+
             }
-            quads = temp;
         }
+
+        foreach(var pair in vertexToNum) accumulations[pair.Key] /= pair.Value;
+
+        List<Quad> squared = new();
+        foreach (var quad in quads)
+        {
+            List<Vector2> quadPoints = quad.GetPoints(true);
+            var a = quadPoints[0] + accumulations[quadPoints[0]];
+            var b = quadPoints[1] + accumulations[quadPoints[1]];
+            var c = quadPoints[2] + accumulations[quadPoints[2]];
+            var d = quadPoints[3] + accumulations[quadPoints[3]];
+            squared.Add(new(new(a, b, c), new(c, d, a)));
+        }
+        return squared;
     }
 
     List<Vector2> SquareQuad(Quad quad)
@@ -302,7 +347,7 @@ public class GridBuilder : MonoBehaviour
         }
         averagedDiff /= rotatedDiffs.Count;
         List<Vector2> finalVerts = new() { center + averagedDiff };
-        for (int i = 1; i < 4; i++)
+        for (int i = 3; i >= 1; i--)
         {
             finalVerts.Add(center + averagedDiff.RotatePoint((Vector2.NumTurns)i));
         }
@@ -425,7 +470,11 @@ public class GridBuilder : MonoBehaviour
         else if (shape is Quad quad)
         {
             var points = quad.GetPoints(); // We dont want the points to be sorted
-            print(points.Count);
+            if (points.Count() < 4)
+            {
+                Debug.LogError("Quad points = " + points.Count());
+                return;
+            }
             var aIndex = AddPointToMeshArrays(points[0], meshData, 0, typeof(Quad));
             var bIndex = AddPointToMeshArrays(points[1], meshData, 1, typeof(Quad));
             var cIndex = AddPointToMeshArrays(points[2], meshData, 2, typeof(Quad));

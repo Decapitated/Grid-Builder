@@ -1126,6 +1126,7 @@ MonoBehaviour:
   clickLength: 0.333
   buildGrid: {fileID: 1103819889}
   moveSpeed: 20
+  minCameraY: 0.5
 --- !u!1 &1957081919 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 182406, guid: a1d34f7914a1d8148a0ce7262f7ba394, type: 3}

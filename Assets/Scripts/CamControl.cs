@@ -20,6 +20,7 @@ public class CamControl : MonoBehaviour
 
     // Movement speed in units per second.
     public float moveSpeed = 1.0F;
+    public float minCameraY = 0.5f;
     bool moving = false;
     float startTime;
     Vector3 start, end;
@@ -58,7 +59,7 @@ public class CamControl : MonoBehaviour
             transform.Rotate(mouseMove.x * Time.deltaTime * Vector3.up, Space.World);
             transform.Rotate(-mouseMove.y * Time.deltaTime * Vector3.right, Space.Self);
             // Undo move if it messes up the camera.
-            if (camera.transform.position.y < transform.position.y) transform.localRotation = backupQuat;
+            if (camera.transform.position.y < transform.position.y + minCameraY) transform.localRotation = backupQuat;
         }
 
         // Move camera man.

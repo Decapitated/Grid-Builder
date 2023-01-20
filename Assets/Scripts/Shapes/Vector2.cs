@@ -43,14 +43,14 @@ public class Vector2 : System.IEquatable<Vector2>
             var y = X;
             if (bigger) y *= -1;
             return new(x, y);
-        }else if(num == NumTurns.Two)
+        } else if (num == NumTurns.Two)
         {
             var x = Y;
             var y = X;
             if (bigger) x *= -1;
             else y *= -1;
             return new(x, y);
-        }else if(num == NumTurns.Three)
+        } else if (num == NumTurns.Three)
         {
             var x = Y;
             var y = X;
@@ -60,11 +60,21 @@ public class Vector2 : System.IEquatable<Vector2>
         return new(0, 0);
     }
 
+    public enum Places
+    {
+        One = 10,
+        Two = 100,
+        Three = 1000
+    }
+    public Tuple<int, int> GetRounded(Places places = Places.Two) => new(Mathf.RoundToInt(X * (int)places), Mathf.RoundToInt(Y * (int)places));
+
     public bool Equals(Vector2 e)
     {
         if (e is null) return false;
         if (e.GetType() != GetType()) return false;
-        return (Mathf.RoundToInt(X * 100) == Mathf.RoundToInt(e.X * 100)) && (Mathf.RoundToInt(Y * 100) == Mathf.RoundToInt(e.Y * 100));
+        var a = GetRounded(Places.Three);
+        var b = e.GetRounded(Places.Three);
+        return (a.Item1 == b.Item1) && (a.Item2) == b.Item2;
     }
 
     public override bool Equals(object obj) => Equals(obj as Vector2);
@@ -85,12 +95,18 @@ public class Vector2 : System.IEquatable<Vector2>
     //public static Vector2 operator /(Vector2 lhs, Vector2 rhs) => new(lhs.X / rhs.X, lhs.Y / rhs.Y);
     public static Vector2 operator /(Vector2 lhs, float value) => new(lhs.X / value, lhs.Y / value);
 
-    public override int GetHashCode() => HashCode.Combine(Mathf.RoundToInt(X * 100).GetHashCode(), Mathf.RoundToInt(Y * 100).GetHashCode());
+    public override int GetHashCode() 
+    {
+        var rounded = GetRounded(Places.Three);
+        return HashCode.Combine(rounded.Item1.GetHashCode(), rounded.Item2.GetHashCode());
+    }
 
-    public override string ToString() => "("+Math.Round(X, 2)+", "+Math.Round(Y, 2)+")";
+    public override string ToString() => "("+X+", "+Y+")";
 
     public static implicit operator UnityEngine.Vector2(Vector2 v) => new(v.X, v.Y);
     public static implicit operator Vector2(UnityEngine.Vector2 v) => new(v.x, v.y);
     public static implicit operator UnityEngine.Vector3(Vector2 v) => new(v.X, 0, v.Y);
     public static implicit operator Vector2(UnityEngine.Vector3 v) => new(v.x, v.z);
+
+    public Vector2 Clone => new(X, Y);
 }
