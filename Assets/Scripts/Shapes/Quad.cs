@@ -17,16 +17,16 @@ public class Quad : System.IEquatable<Quad>
 
     public List<Vector2> GetPoints(bool sort = false)
     {
-        HashSet<Vector2> pointSet = new();
+        List<Vector2> pointList = new();
         foreach (Triangle triangle in GetTriangles())
         {
             var triPoints = triangle.GetPoints();
             foreach (Vector2 point in triPoints)
             {
-                pointSet.Add(point);
+                if(pointList.Contains(point)) continue;
+                pointList.Add(point);
             }
         }
-        var pointList = pointSet.ToList();
         if (sort) SortPoints(pointList);
         return pointList;
     }
@@ -36,9 +36,22 @@ public class Quad : System.IEquatable<Quad>
         return GetCenter(GetPoints());
     }
 
+    public List<Edge> GetEdges()
+    {
+        var list = new List<Edge>();
+        list.AddRange(A.GetEdges());
+        list.AddRange(B.GetEdges());
+        return list;
+    }
+
+    public bool SharesEdge(Quad other) => GetEdges().Intersect(other.GetEdges()).Count() > 0;
+
     public static Vector2 GetCenter(List<Vector2> points)
     {
-        return (points[0] + points[1] + points[2] + points[3]) / 4f;
+        Vector2 total = new(0, 0);
+        foreach (var point in points)
+            total += point;
+        return total / points.Count;
     }
 
     public static void SortPoints(List<Vector2> points)

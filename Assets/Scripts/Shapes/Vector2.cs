@@ -29,6 +29,37 @@ public class Vector2 : System.IEquatable<Vector2>
         return angle;
     }
 
+    public enum NumTurns {
+        One = 3,
+        Two = 2,
+        Three = 1
+    }
+    public Vector2 RotatePoint(NumTurns num)
+    {
+        bool bigger = Mathf.Abs(X) > Mathf.Abs(Y);
+        if (num == NumTurns.One)
+        {
+            var x = Y;
+            var y = X;
+            if (bigger) y *= -1;
+            return new(x, y);
+        }else if(num == NumTurns.Two)
+        {
+            var x = Y;
+            var y = X;
+            if (bigger) x *= -1;
+            else y *= -1;
+            return new(x, y);
+        }else if(num == NumTurns.Three)
+        {
+            var x = Y;
+            var y = X;
+            if (!bigger) x *= -1;
+            return new(x, y);
+        }
+        return new(0, 0);
+    }
+
     public bool Equals(Vector2 e)
     {
         if (e is null) return false;
@@ -44,6 +75,9 @@ public class Vector2 : System.IEquatable<Vector2>
 
     public static Vector2 operator +(Vector2 lhs, Vector2 rhs) => new(lhs.X + rhs.X, lhs.Y + rhs.Y);
     public static Vector2 operator +(Vector2 lhs, float value) => new(lhs.X + value, lhs.Y + value);
+
+    public static Vector2 operator -(Vector2 lhs, Vector2 rhs) => new(lhs.X - rhs.X, lhs.Y - rhs.Y);
+    public static Vector2 operator -(Vector2 lhs, float value) => new(lhs.X - value, lhs.Y - value);
 
     public static Vector2 operator *(Vector2 lhs, Vector2 rhs) => new(lhs.X * rhs.X, lhs.Y * rhs.Y);
     public static Vector2 operator *(Vector2 lhs, float value) => new(lhs.X * value, lhs.Y * value);

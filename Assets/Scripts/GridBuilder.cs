@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using UnityEngine;
-using static UnityEngine.Mesh;
 using Random = System.Random;
 
 struct MeshData
@@ -90,21 +89,22 @@ public class GridBuilder : MonoBehaviour
             Vector2 hitPoint = MouseHover;
             Vector2 closestFace = null;
             float champDist = float.PositiveInfinity;
-            foreach (var pair in dualGraph)
-            {
-                if (closestFace is null)
+            if(dualGraph != null)
+                foreach (var pair in dualGraph)
                 {
-                    closestFace = pair.Key;
-                    champDist = hitPoint.Distance(closestFace);
-                    continue;
+                    if (closestFace is null)
+                    {
+                        closestFace = pair.Key;
+                        champDist = hitPoint.Distance(closestFace);
+                        continue;
+                    }
+                    float tempDist = hitPoint.Distance(pair.Key);
+                    if (tempDist < champDist)
+                    {
+                        champDist = tempDist;
+                        closestFace = pair.Key;
+                    }
                 }
-                float tempDist = hitPoint.Distance(pair.Key);
-                if (tempDist < champDist)
-                {
-                    champDist = tempDist;
-                    closestFace = pair.Key;
-                }
-            }
             MouseClosestFace = closestFace;
         }
         else if (MouseClosestFace is not null) MouseClosestFace = null;
@@ -150,9 +150,10 @@ public class GridBuilder : MonoBehaviour
     {
         print("Generating grid...");
         var random = GenerateRandom();
-        random = SplitShapes(random);
-        graphMeshData = ObjectArrayToMesh(random);
-        dualGraph = GetDualGraph(random);
+        var split = SplitShapes(random);
+        //SquareQuads(split);
+        graphMeshData = ObjectArrayToMesh(new(split));
+        dualGraph = GetDualGraph(new(split));
         workDone = true;
         print("Finished generating!");
     }
@@ -211,9 +212,9 @@ public class GridBuilder : MonoBehaviour
         return quads;
     }
 
-    List<object> SplitShapes(List<object> shapes)
+    List<Quad> SplitShapes(List<object> shapes)
     {
-        List<object> quads = new();
+        List<Quad> quads = new();
         foreach (var shape in shapes)
         {
             if(shape is Quad quad) quads.AddRange(quad.Split());
@@ -244,6 +245,68 @@ public class GridBuilder : MonoBehaviour
             dualGraphShapes.Add(shapeCenter, new Polygon(centerPoints, shapeCenter));
         }
         return dualGraphShapes;
+    }
+
+    void SquareQuads(List<Quad> quads)
+    {
+        for (int n = 0; n < 50; n++)
+        {
+            Dictionary<Vector2, Vector2> accumulations = new();
+            foreach (var quad in quads)
+            {
+                List<Vector2> quadPoints = quad.GetPoints();
+                List<Vector2> squaredQuadPoints = SquareQuad(quad);
+                print("Square points: " + squaredQuadPoints.Count);
+                List<Vector2> newPoints = new();
+                for (int i = 0; i < 4; i++)
+                {
+                    Vector2 moveVec = squaredQuadPoints[i] - quadPoints[i];
+                    if (accumulations.ContainsKey(quadPoints[i]))
+                        accumulations[quadPoints[i]] = accumulations[quadPoints[i]] + moveVec;
+                    else
+                        accumulations.Add(quadPoints[i], moveVec);
+                }
+            }
+            List<Quad> temp = new();
+            foreach(var quad in quads)
+            {
+                var points = quad.GetPoints();
+                for (int i = 0; i < 4; i++)
+                {
+                    points[i] = points[i] + accumulations[points[i]];
+                }
+                temp.Add(new(new(points[0], points[1], points[2]), new(points[2], points[3], points[0])));
+            }
+            quads = temp;
+        }
+    }
+
+    List<Vector2> SquareQuad(Quad quad)
+    {
+        Vector2 center = quad.GetCenter();
+        List<Vector2> points = quad.GetPoints();
+        List<Vector2> centerDiffs = new();
+        for(int i = 0; i < 4; i++)
+        {
+            centerDiffs.Add(points[i] - center);
+        }
+        List<Vector2> rotatedDiffs = new() { centerDiffs[0] };
+        for (int i = 1; i < 4; i++)
+        {
+            rotatedDiffs.Add(centerDiffs[i].RotatePoint((Vector2.NumTurns)i));
+        }
+        Vector2 averagedDiff = new(0, 0);
+        for (int i = 0; i < 4; i++)
+        {
+            averagedDiff += rotatedDiffs[i];
+        }
+        averagedDiff /= rotatedDiffs.Count;
+        List<Vector2> finalVerts = new() { center + averagedDiff };
+        for (int i = 1; i < 4; i++)
+        {
+            finalVerts.Add(center + averagedDiff.RotatePoint((Vector2.NumTurns)i));
+        }
+        return finalVerts;
     }
 
     Vector2 GetCenter(List<Vector2> points)
@@ -362,6 +425,7 @@ public class GridBuilder : MonoBehaviour
         else if (shape is Quad quad)
         {
             var points = quad.GetPoints(); // We dont want the points to be sorted
+            print(points.Count);
             var aIndex = AddPointToMeshArrays(points[0], meshData, 0, typeof(Quad));
             var bIndex = AddPointToMeshArrays(points[1], meshData, 1, typeof(Quad));
             var cIndex = AddPointToMeshArrays(points[2], meshData, 2, typeof(Quad));
