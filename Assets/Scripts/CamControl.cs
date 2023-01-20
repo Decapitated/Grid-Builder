@@ -47,29 +47,41 @@ public class CamControl : MonoBehaviour
             transform.position = Vector3.Lerp(start, end, fractionOfJourney);
             if (Vector3.Distance(transform.position, end) <= 0.001) moving = false;
         }
+
         // Moved this value into a locally global position.
         UnityEngine.Vector2 mouseMove = GetMouseMovement();
-        // Move camera man.
-        if (Input.GetMouseButton(0))
-        {
-            float maxDistance = Hex.GetHexMaxSide(buildGrid.range, buildGrid.scale);
-            transform.Translate(-mouseMove.x * Time.deltaTime * Vector3.right, Space.Self);
-            transform.Translate(-mouseMove.y * Time.deltaTime * Vector3.up, Space.World);
-            transform.position = new(
-                Mathf.Max(-maxDistance, Mathf.Min(maxDistance, transform.position.x)),
-                Mathf.Max(0f, transform.position.y),
-                Mathf.Max(-maxDistance, Mathf.Min(maxDistance, transform.position.z)));
-        }
+
         // Rotate camera man.
         if (Input.GetMouseButton(1))
         {
+            Quaternion backupQuat = transform.localRotation;
             transform.Rotate(mouseMove.x * Time.deltaTime * Vector3.up, Space.World);
             transform.Rotate(-mouseMove.y * Time.deltaTime * Vector3.right, Space.Self);
+            // Undo move if it messes up the camera.
+            if (camera.transform.position.y < transform.position.y) transform.localRotation = backupQuat;
+        }
+
+        // Move camera man.
+        if (Input.GetMouseButton(0))
+        {
+            transform.Translate(-mouseMove.x * Time.deltaTime * Vector3.right, Space.Self);
+            transform.Translate(-mouseMove.y * Time.deltaTime * Vector3.up, Space.World);
         }
         // Camera points at camer man.
         camera.transform.LookAt(transform);
+
+        Vector3 backupVec = camera.transform.position;
         // Camera moves towards camera man.
         camera.transform.Translate(Input.mouseScrollDelta.y * scrollScale * Vector3.forward);
+        // Undo move if it messes up the camera.
+        if (camera.transform.position.y < transform.position.y) camera.transform.position = backupVec;
+
+        float maxDistance = Hex.GetHexMaxSide(buildGrid.range, buildGrid.scale);
+        transform.position = new(
+                Mathf.Max(-maxDistance, Mathf.Min(maxDistance, transform.position.x)),
+                Mathf.Max(0f, transform.position.y),
+                Mathf.Max(-maxDistance, Mathf.Min(maxDistance, transform.position.z)));
+
     }
 
     // Checks if the button was clicked within the set length of time.

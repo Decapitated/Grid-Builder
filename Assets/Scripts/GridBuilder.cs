@@ -77,6 +77,11 @@ public class GridBuilder : MonoBehaviour
         }
         if (workDone) WorkDone();
 
+        Raycast();
+    }
+
+    void Raycast()
+    {
         Ray rayOrigin = Camera.main.ScreenPointToRay(Input.mousePosition, Camera.MonoOrStereoscopicEye.Mono);
         RaycastHit hitInfo;
         if (Physics.Raycast(rayOrigin, out hitInfo, Mathf.Infinity, layerMask))
@@ -104,7 +109,8 @@ public class GridBuilder : MonoBehaviour
         }
     }
 
-    // If generation is done, assign to mesh.
+    #region ThreadWork
+
     void WorkDone()
     {
         Mesh mesh = MeshDataToMesh(graphMeshData);
@@ -149,6 +155,8 @@ public class GridBuilder : MonoBehaviour
         workDone = true;
         print("Finished generating!");
     }
+
+    #endregion
 
     #region Graph Generation
 
