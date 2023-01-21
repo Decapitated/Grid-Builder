@@ -10,7 +10,18 @@ public class Polygon
 
     public Polygon(List<Vector2> points, Vector2 center)
     {
-        Points = points; Center = center;
+        Points = points;
+        Center = center;
+    }
+
+    public Vector2 CalcCenter()
+    {
+        Vector2 temp = new(0, 0);
+        foreach (var point in Points)
+        {
+            temp += point;
+        }
+        return temp / Points.Count;
     }
 
     public List<Triangle> GetTriangles()
@@ -24,5 +35,15 @@ public class Polygon
             triangles.Add(new(a, b, Center));
         }
         return triangles;
+    }
+
+    public List<Edge> GetEdges()
+    {
+        var edges = new List<Edge>();
+        for(int i = 0; i < Points.Count; i++)
+        {
+            edges.Add(new( Points[i], Points[(i + 1) % Points.Count]));
+        }
+        return edges;
     }
 }

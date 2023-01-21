@@ -62,19 +62,19 @@ public class Vector2 : System.IEquatable<Vector2>
 
     public enum Places
     {
-        One = 10,
-        Two = 100,
-        Three = 1000
+        One = 1,
+        Two = 2,
+        Three = 3
     }
-    public Tuple<int, int> GetRounded(Places places = Places.Two) => new(Mathf.RoundToInt(X * (int)places), Mathf.RoundToInt(Y * (int)places));
+    public Vector2 GetRounded(Places places = Places.Two) => new((float)Math.Round(X, (int)places), (float)Math.Round(Y, (int)places));
 
     public bool Equals(Vector2 e)
     {
         if (e is null) return false;
         if (e.GetType() != GetType()) return false;
-        var a = GetRounded(Places.Three);
-        var b = e.GetRounded(Places.Three);
-        return (a.Item1 == b.Item1) && (a.Item2) == b.Item2;
+        var a = GetRounded();
+        var b = e.GetRounded();
+        return (a.X == b.X) && (a.Y == b.Y);
     }
 
     public override bool Equals(object obj) => Equals(obj as Vector2);
@@ -97,8 +97,8 @@ public class Vector2 : System.IEquatable<Vector2>
 
     public override int GetHashCode() 
     {
-        var rounded = GetRounded(Places.Three);
-        return HashCode.Combine(rounded.Item1.GetHashCode(), rounded.Item2.GetHashCode());
+        var rounded = GetRounded();
+        return HashCode.Combine(rounded.X, rounded.Y);
     }
 
     public override string ToString() => "("+X+", "+Y+")";
