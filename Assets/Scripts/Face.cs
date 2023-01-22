@@ -30,20 +30,7 @@ public class Face : MonoBehaviour
             return true;
         if (gridBuilder.MouseClosestFace != null)
         {
-            Polygon polygon = (Polygon)gridBuilder.DualGraphObj.vertexToPolygon[gridBuilder.MouseClosestFace];
-            var edges = polygon.GetEdges();
-            foreach (var edge in edges)
-            {
-                List<Vector2> neighbors;
-                if (gridBuilder.DualGraphObj.edgeToShapesVertex.TryGetValue(edge, out neighbors))
-                {
-                    foreach (Vector2 neighborVertex in neighbors)
-                    {
-                        if (neighborVertex == id) return true;
-                    }
-                }
-            }
-
+            if(gridBuilder.dualGraph.IsNeighbor(gridBuilder.MouseClosestFace, id)) return true;
         }
         
         return false;

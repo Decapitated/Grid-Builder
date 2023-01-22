@@ -149,6 +149,15 @@ public class Hex
         int diameter = range * 2 + 1;
         return diameter * (Mathf.Sqrt(3) * size);
     }
+    
+    public static Vector2 GetMaxSides(int range, float size)
+    {
+        int diameter = range * 2 + 1;
+        var maxHeight = diameter * (Mathf.Sqrt(3) * size);
+        return new(
+            Mathf.Sqrt(3) * (maxHeight / 2f),
+            maxHeight);
+    }
     #endregion
     
     #region Private

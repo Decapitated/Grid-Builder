@@ -50,7 +50,7 @@ public class GridBuilder : MonoBehaviour
     bool workDone = false;
     MeshData graphMeshData;
     //MeshData dualGraphMeshData;
-    public DualGraph DualGraphObj { get; private set; }
+    public DualGraph dualGraph;
 
     void Awake()
     {
@@ -98,23 +98,8 @@ public class GridBuilder : MonoBehaviour
             MouseHover = hitInfo.point;
             Vector2 hitPoint = MouseHover;
             Vector2 closestFace = null;
-            float champDist = float.PositiveInfinity;
-            if(DualGraphObj.vertexToPolygon is not null)
-                foreach (var pair in DualGraphObj.vertexToPolygon)
-                {
-                    if (closestFace is null)
-                    {
-                        closestFace = pair.Key;
-                        champDist = hitPoint.Distance(closestFace);
-                        continue;
-                    }
-                    float tempDist = hitPoint.Distance(pair.Key);
-                    if (tempDist < champDist)
-                    {
-                        champDist = tempDist;
-                        closestFace = pair.Key;
-                    }
-                }
+            if (dualGraph is not null)
+                closestFace = dualGraph.GetClosestShape(hitPoint);
             MouseClosestFace = closestFace;
         }
         else if (MouseClosestFace is not null) MouseClosestFace = null;
@@ -153,8 +138,8 @@ public class GridBuilder : MonoBehaviour
         
         // Clear children.
         foreach(Transform child in transform) Destroy(child.gameObject);
-        if(DualGraphObj.vertexToPolygon is not null)
-            foreach(var pair in DualGraphObj.vertexToPolygon)
+        if(dualGraph is not null)
+            foreach(var pair in dualGraph.VertexToPolygon)
             {
                 GameObject faceObj = Instantiate(facePrefab, transform, false);
                 faceObj.name = "Face";
@@ -181,14 +166,14 @@ public class GridBuilder : MonoBehaviour
         print("Generating grid...");
         var random = GenerateRandom();
         var split = SplitShapes(random);
-        /* Sorta works. but not really. Triangles disappear.
-        var squared = SquareQuads(split);
-        for(int i = 1; i < 25; i++)
+        //Sorta works. but not really.
+        /*var squared = SquareQuads(split);
+        for(int i = 1; i < 10; i++)
         {
             squared = SquareQuads(squared);
         }*/
         graphMeshData = ObjectArrayToMesh(new(split));
-        DualGraphObj = GetDualGraph(new(split));
+        dualGraph = new(new(split));
         workDone = true;
         print("Finished generating!");
     }
@@ -256,49 +241,6 @@ public class GridBuilder : MonoBehaviour
             else if (shape is Triangle triangle) quads.AddRange(triangle.Split());
         }
         return quads;
-    }
-
-
-    public bool ShowNeighbors = true;
-    public struct DualGraph
-    {
-        public Dictionary<Vector2, object> vertexToPolygon;
-        public Dictionary<Edge, List<Vector2>> edgeToShapesVertex;
-    }
-    DualGraph GetDualGraph(List<object> shapes)
-    {
-        var vertexToShapes = GetVertexToShapes(shapes);
-
-        var dualGraph = new DualGraph()
-        {
-            vertexToPolygon = new(),
-            edgeToShapesVertex = new()
-        };
-
-        foreach (var pair in vertexToShapes)
-        {
-            var sharedShapes = pair.Value;
-            List<Vector2> centerPoints = new();
-            foreach(var shape in sharedShapes)
-            {
-                centerPoints.Add(GetShapeCenter(shape));
-            }
-            Quad.SortPoints(centerPoints);
-            var polygon = new Polygon(centerPoints);
-            if (centerPoints.Count == 3)
-            {
-                if (polygon.Center.GetRounded() != pair.Key) continue;
-            }
-            dualGraph.vertexToPolygon.Add(polygon.Center, polygon);
-            foreach(var edge in polygon.GetEdges())
-            {
-                if(!dualGraph.edgeToShapesVertex.ContainsKey(edge))
-                    dualGraph.edgeToShapesVertex.Add(edge, new List<Vector2>());
-                dualGraph.edgeToShapesVertex[edge].Add(polygon.Center);
-            }
-        }
-
-        return dualGraph;
     }
 
     List<Quad> SquareQuads(List<Quad> quads)
@@ -379,41 +321,7 @@ public class GridBuilder : MonoBehaviour
         return temp / points.Count;
     }
 
-    Dictionary<Vector2, List<object>> GetVertexToShapes(List<object> shapes)
-    {
-        var vertexToShapes = new Dictionary<Vector2, List<object>>();
-        foreach(var shape in shapes)
-        {
-            foreach(var vertex in GetShapeVertices(shape))
-            {
-                if (!vertexToShapes.ContainsKey(vertex))
-                {
-                    vertexToShapes[vertex] = new();
-                }
-                vertexToShapes[vertex].Add(shape);
-            }
-        }
-        foreach(var pair in vertexToShapes.ToList())
-        {
-            if (pair.Value.Count < 3) vertexToShapes.Remove(pair.Key);
-        }
-        return vertexToShapes;
-    }
-
-    Vector2 GetShapeCenter(object shape)
-    {
-        if (shape is Quad quad) return quad.GetCenter();
-        if (shape is Triangle triangle) return triangle.GetCenter();
-        return new(1000, -1000);
-    }
-
-    List<Vector2> GetShapeVertices(object shape)
-    {
-        List<Vector2> points = new();
-        if (shape is Quad quad) points.AddRange(quad.GetPoints());
-        else if (shape is Triangle triangle) points.AddRange(triangle.GetPoints());
-        return points;
-    }
+    
 
     #endregion
 
