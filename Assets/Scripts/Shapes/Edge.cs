@@ -26,5 +26,5 @@ public class Edge : System.IEquatable<Edge>
 
     public static bool operator !=(Edge lhs, Edge rhs) => !(lhs == rhs);
 
-    public override int GetHashCode() => (A.GetHashCode() ^ B.GetHashCode()) + (B.GetHashCode() ^ A.GetHashCode());
+    public override int GetHashCode() => A.GetHashCode() ^ B.GetHashCode();
 }

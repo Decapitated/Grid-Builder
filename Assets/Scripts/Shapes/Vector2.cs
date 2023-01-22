@@ -66,7 +66,7 @@ public class Vector2 : System.IEquatable<Vector2>
         Two = 2,
         Three = 3
     }
-    public Vector2 GetRounded(Places places = Places.Two) => new((float)Math.Round(X, (int)places), (float)Math.Round(Y, (int)places));
+    public Vector2 GetRounded(Places places = Places.Three) => new((float)Math.Round(X, (int)places), (float)Math.Round(Y, (int)places));
 
     public bool Equals(Vector2 e)
     {

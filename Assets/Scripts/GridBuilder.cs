@@ -63,11 +63,6 @@ public class GridBuilder : MonoBehaviour
         oldRange = range;
         oldScale = scale;
         oldSeed = seed;
-        var p1 = new Vector2(1.3456f, 3.7492f);
-        var p2 = new Vector2(3.7492f, 1.3454f);
-        var a = new Edge(p1, p2);
-        var b = new Edge(p2, p1);
-        print(a.GetHashCode() == b.GetHashCode());
     }
 
     // Update is called once per frame
@@ -88,13 +83,9 @@ public class GridBuilder : MonoBehaviour
         if (GetMouseButtonClicked(0))
         {
             if (ToggledFaces.Contains(MouseClosestFace))
-            {
                 ToggledFaces.Remove(MouseClosestFace);
-            }
             else
-            {
                 ToggledFaces.Add(MouseClosestFace);
-            }
         }
     }
 
@@ -292,10 +283,11 @@ public class GridBuilder : MonoBehaviour
             {
                 centerPoints.Add(GetShapeCenter(shape));
             }
-            var polygon = new Polygon(centerPoints, pair.Key);
+            Quad.SortPoints(centerPoints);
+            var polygon = new Polygon(centerPoints);
             if (centerPoints.Count == 3)
             {
-                if (polygon.CalcCenter().GetRounded() != pair.Key) continue;
+                if (polygon.Center.GetRounded() != pair.Key) continue;
             }
             dualGraph.vertexToPolygon.Add(polygon.Center, polygon);
             foreach(var edge in polygon.GetEdges())

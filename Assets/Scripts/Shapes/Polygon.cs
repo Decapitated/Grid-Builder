@@ -8,13 +8,13 @@ public class Polygon
     public List<Vector2> Points { get; private set; }
     public Vector2 Center { get; private set; }
 
-    public Polygon(List<Vector2> points, Vector2 center)
+    public Polygon(List<Vector2> points)
     {
         Points = points;
-        Center = center;
+        Center = CalcCenter();
     }
 
-    public Vector2 CalcCenter()
+    Vector2 CalcCenter()
     {
         Vector2 temp = new(0, 0);
         foreach (var point in Points)
