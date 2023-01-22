@@ -1,8 +1,10 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
-public class Hex
+public class Hex : System.IEquatable<Hex>
 {
     static readonly Hex[] axial_direction_vectors = new Hex[] {
         new(1, -1), new(0, -1), new(-1, 0),
@@ -22,7 +24,7 @@ public class Hex
     public float S { get => -Q - R; }
 
     public static float AxialDistance(Hex a, Hex b) => (Mathf.Abs(a.Q - b.Q) + Mathf.Abs(a.Q + a.R - b.Q - b.R) + Mathf.Abs(a.R - b.R)) / 2f;
-    public static Hex AxialNeighbor(Hex hex, int direction) => AxialAdd(hex, AxialDirection(direction));
+    public static Hex AxialNeighbor(Hex hex, int direction) => hex + AxialDirection(direction);
     public Hex GetNeighbor(int direction) => AxialNeighbor(this, direction);
 
     public List<Hex> GetHexInRange(int range) => GetHexInRange(this, range);
@@ -33,7 +35,7 @@ public class Hex
         {
             for (int r = Mathf.Max(-range, -q - range); r <= Mathf.Min(range, -q + range); r++)
             {
-                results.Add(AxialAdd(center, new(q, r)));
+                results.Add(center + new Hex(q, r));
             }
         }
         return results;
@@ -43,7 +45,7 @@ public class Hex
     public static List<Hex> GetHexAtRange(Hex center, int range)
     {
         var results = new List<Hex>();
-        var hex = AxialAdd(center, Scale(AxialDirection(4), range));
+        var hex = center + (AxialDirection(4) * range);
         for (int i = 0; i < 6; i++)
         {
             for (int j = 0; j < range; j++)
@@ -94,6 +96,21 @@ public class Hex
             }
         }
         return results;
+    }
+
+
+    public static List<Hex> GetHexInRanges(RangeInfo[] ranges)
+    {
+        HashSet<Hex> results = new();
+        foreach(var range in ranges)
+        {
+            var cells = range.center.GetHexSpiralInRange(range.range);
+            foreach (var cell in cells)
+            {
+                results.Add(cell);
+            }
+        }
+        return results.ToList();
     }
 
     public Vector2 GetHexCenter(float size)
@@ -172,7 +189,6 @@ public class Hex
         public List<float> MinS;
     }
     static Hex AxialDirection(int direction) => axial_direction_vectors[direction];
-    static Hex AxialAdd(Hex hex, Hex vec) => new(hex.Q + vec.Q, hex.R + vec.R);
     static HexArrays GetHexArrays(RangeInfo[] ranges)
     {
         HexArrays hexArrays = new()
@@ -214,6 +230,31 @@ public class Hex
         }
         return new(q, r);
     }
-    static Hex Scale(Hex hex, float factor) => new(hex.Q * factor, hex.R * factor);
+
+    #endregion
+
+    #region Equality
+
+    public bool Equals(Hex h)
+    {
+        if (h is null) return false;
+        if (h.GetType() != GetType()) return false;
+        return (Q == h.Q) && (R == h.R);
+    }
+
+    public override bool Equals(object obj) => Equals(obj as Hex);
+
+    public static bool operator ==(Hex lhs, Hex rhs) => Equals(lhs, rhs);
+
+    public static bool operator !=(Hex lhs, Hex rhs) => !(lhs == rhs);
+
+    public static Hex operator +(Hex lhs, Hex rhs) => new(lhs.Q + rhs.Q, lhs.R + rhs.R);
+
+    public static Hex operator *(Hex lhs, float value) => new(lhs.Q * value, lhs.R * value);
+
+    public override int GetHashCode() => HashCode.Combine(Q, R);
+
+    public override string ToString() => "(" + Q + ", " + R + ")";
+
     #endregion
 }

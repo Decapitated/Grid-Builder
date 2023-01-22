@@ -27,8 +27,35 @@ public class Test : MonoBehaviour
         Vector2 maxSides = Hex.GetMaxSides(range, scale);
         float radius = maxSides.Y / 2f;
         Hex hex = new(0, 0);
-        List<Hex> cells = hex.GetHexSpiralInRange(range);
-        var bounds = GetBounds(cells);
+        //List<Hex> cells = hex.GetHexSpiralInRange(range);
+        var cells = Hex.GetHexInRanges(new Hex.RangeInfo[]
+            {
+                new(){
+                    center = new(0, 0),
+                    range = range
+                },
+                new(){
+                    center = new(range + 1, -((range + 1f) * 2f)),
+                    range = range
+                },
+                new(){
+                    center = new(((range + 1f) * 2f), -(range + 1)),
+                    range = range
+                },
+                new(){
+                    center = new(range + 1, range + 1),
+                    range = range
+                },
+                new(){
+                    center = new(-((range + 1f) * 2f), range + 1),
+                    range = range
+                },
+                new(){
+                    center = new(-(range + 1), range + 1),
+                    range = range
+                }
+            });
+        /*var bounds = GetBounds(cells);
         foreach (var cell in cells)
         {
             for(int i = 0; i < 6; i++)
@@ -38,20 +65,20 @@ public class Test : MonoBehaviour
                 a = NormalizePoint(new(0f, 0f), a, maxSides.X / 2f, bounds);
                 b = NormalizePoint(new(0f, 0f), b, maxSides.X / 2f, bounds);
 
-                var aV = GridToSphereCoord(TransformGridPoint(a, maxSides), maxSides.X / 2f);
-                var bV = GridToSphereCoord(TransformGridPoint(b, maxSides), maxSides.X / 2f);
+                var aV = GridToSphereCoord(TransformGridPoint(a, maxSides), maxSides.Y / 2f);
+                var bV = GridToSphereCoord(TransformGridPoint(b, maxSides), maxSides.Y / 2f);
 
                 Gizmos.DrawLine(aV, bV);
             }
-        }
-        PrintMinMax(maxSides.Y / 2f);
+        }*/
+        PrintMinMax((maxSides.Y / 2f) * ((range * 2) + 1));
     }
 
     // Max range for x per hemisphere = (0, PI)
     // Max range for y per hemisphere = (-Radius, Radius)
     public Vector2 TransformGridPoint(Vector2 point, Vector2 maxSides)
     {
-        float x = ((point.X + maxSides.X) - (maxSides.X / 2f)) / maxSides.X;
+        float x = ((point.X + maxSides.Y) - (maxSides.Y / 2f)) / maxSides.Y;
         return new(
             Mathf.PI * x,
             point.Y);
@@ -158,6 +185,9 @@ public class Test : MonoBehaviour
             for (int i = 0; i < 6; i++)
             {
                 var point = cell.GetHexCorner(scale, i);
+                var b = cell.GetHexCorner(scale, (i + 1) % 6);
+                Gizmos.DrawLine(point, b);
+
                 point = NormalizePoint(center, point, radius, bounds);
                 Gizmos.color = Color.blue;
                 if (point is not null) Gizmos.DrawWireSphere(point, 0.1f);
