@@ -10,17 +10,19 @@ public class Portal : MonoBehaviour
     public Portal otherPortal;
 
     public RenderTexture Texture { get; private set; }
-    public Camera Camera { get; private set; }
+    public Camera PortalCamera { get; private set; }
 
     public MeshRenderer Screen { get; private set; }
 
+    public bool oneWay = false;
+
     void Awake()
     {
-        Camera = GetComponentInChildren<Camera>();
+        PortalCamera = GetComponentInChildren<Camera>();
+        PortalCamera.enabled = false;
+
         Screen = GetComponent<MeshRenderer>();
         Screen.material = new Material(portalShader);
-
-        Camera.enabled = false;
     }
 
     void Start()
@@ -33,24 +35,38 @@ public class Portal : MonoBehaviour
 
     }
 
+    void OnDestroy()
+    {
+        if (Texture != null) Texture.Release();
+    }
 
     [Range(1, 10)]
     public int recursionLimit = 1;
 
+
+    // All work with this but is being weird.
     void OnRenderObject()
     {
-        if (!VisibleFromCamera(otherPortal.Screen, Camera.main)) return;
+        if (!VisibleFromCamera(otherPortal.Screen, Camera.main))
+        {
+            /*if (Texture != null)
+            {
+                Texture.Release();
+                Texture = null;
+            }*/
+            return;
+        }
 
         Screen.enabled = false;
 
         CreateTexture();
 
         Matrix4x4 m = transform.localToWorldMatrix * otherPortal.transform.worldToLocalMatrix * Camera.main.transform.localToWorldMatrix;
-        Camera.transform.SetPositionAndRotation(m.GetColumn(3), m.rotation);
+        PortalCamera.transform.SetPositionAndRotation(m.GetColumn(3), m.rotation);
 
         SetNearClipPlane();
 
-        Camera.Render();
+        PortalCamera.Render();
 
         Screen.enabled = true;
     }
@@ -69,16 +85,16 @@ public class Portal : MonoBehaviour
             matrices[recursionLimit - i - 1] = localToWorld;
         }
 
-        Screen.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+        Screen.shadowCastingMode = ShadowCastingMode.ShadowsOnly;
 
         for (int i = 0; i < recursionLimit; i++)
         {
-            Camera.transform.SetPositionAndRotation(matrices[i].GetColumn(3), matrices[i].rotation);
+            PortalCamera.transform.SetPositionAndRotation(matrices[i].GetColumn(3), matrices[i].rotation);
             SetNearClipPlane();
-            Camera.Render();
+            PortalCamera.Render();
         }
 
-        Screen.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+        Screen.shadowCastingMode = ShadowCastingMode.On;
     }
 
     void CreateTexture()
@@ -89,13 +105,13 @@ public class Portal : MonoBehaviour
             {
                 Texture.Release();
             }
-            Texture = new(UnityEngine.Screen.width, UnityEngine.Screen.height, 0);
-            Camera.targetTexture = Texture;
+            Texture = new(UnityEngine.Screen.width, UnityEngine.Screen.height, 16);
+            PortalCamera.targetTexture = Texture;
             otherPortal.Screen.material.SetTexture("_PortalTexture", Texture);
         }
     }
 
-    static bool VisibleFromCamera(Renderer renderer, Camera camera)
+    bool VisibleFromCamera(Renderer renderer, Camera camera)
     {
         Plane[] frustrumPlanes = GeometryUtility.CalculateFrustumPlanes(camera);
         return GeometryUtility.TestPlanesAABB(frustrumPlanes, renderer.bounds);
@@ -104,12 +120,12 @@ public class Portal : MonoBehaviour
     void SetNearClipPlane()
     {
         Transform clipPlane = transform;
-        int dot = Math.Sign(Vector3.Dot(clipPlane.forward, transform.position - Camera.transform.position));
+        int dot = Math.Sign(Vector3.Dot(clipPlane.forward, transform.position - PortalCamera.transform.position));
 
-        var camPos = Camera.worldToCameraMatrix.MultiplyPoint(clipPlane.position);
-        var camNormal = Camera.worldToCameraMatrix.MultiplyVector(clipPlane.forward) * dot;
+        var camPos = PortalCamera.worldToCameraMatrix.MultiplyPoint(clipPlane.position);
+        var camNormal = PortalCamera.worldToCameraMatrix.MultiplyVector(clipPlane.forward) * dot;
         var camDist = -Vector3.Dot(camPos, camNormal);
         var clipPlaneCamSpace = new Vector4(camNormal.x, camNormal.y, camNormal.z, camDist);
-        Camera.projectionMatrix = Camera.main.CalculateObliqueMatrix(clipPlaneCamSpace);
+        PortalCamera.projectionMatrix = Camera.main.CalculateObliqueMatrix(clipPlaneCamSpace);
     }
 }
