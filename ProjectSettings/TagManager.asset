@@ -6,6 +6,7 @@ TagManager:
   tags:
   - GridPlane
   - DualGraph
+  - PortalCam
   layers:
   - Default
   - TransparentFX

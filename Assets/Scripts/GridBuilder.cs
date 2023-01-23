@@ -42,6 +42,7 @@ public class GridBuilder : MonoBehaviour
 
     public float clickLength = 0.333f;
     public Vector3 MouseHover { get; private set; }
+    public Vector3 HoverNormal { get; private set; }
     public Vector2 MouseClosestFace { get; private set; }
     public HashSet<Vector2> ToggledFaces { get; private set; } = new ();
 
@@ -95,8 +96,10 @@ public class GridBuilder : MonoBehaviour
         RaycastHit hitInfo;
         if (Physics.Raycast(rayOrigin, out hitInfo, Mathf.Infinity, layerMask))
         {
-            MouseHover = hitInfo.point;
-            Vector2 hitPoint = MouseHover;
+            var hitPoint = hitInfo.point;
+            var hitNormal = hitInfo.normal;
+            MouseHover = hitPoint;
+            HoverNormal = hitNormal;
             Vector2 closestFace = null;
             if (dualGraph is not null)
                 closestFace = dualGraph.GetClosestShape(hitPoint);
@@ -123,6 +126,12 @@ public class GridBuilder : MonoBehaviour
     }
 
     #region ThreadWork
+
+    Thread workThread = null;
+    void OnApplicationQuit()
+    {
+        if(workStarted && !workDone && workThread is not null) workThread.Abort();
+    }
 
     void WorkDone()
     {
@@ -158,7 +167,8 @@ public class GridBuilder : MonoBehaviour
     {
         workStarted = true;
         workDone = false;
-        new Thread(ThreadGenerate).Start();
+        workThread = new Thread(ThreadGenerate);
+        workThread.Start();
     }
 
     void ThreadGenerate()
@@ -182,7 +192,7 @@ public class GridBuilder : MonoBehaviour
 
     #region Graph Generation
 
-    List<object> GenerateRandom()
+    List<object> GenerateRandom2()
     {
         List<object> quads = new();
         List<Triangle> usedTriangles = new();
@@ -228,6 +238,65 @@ public class GridBuilder : MonoBehaviour
                     usedTriangles.Add(opposite);
                 }
             }
+        }
+        return quads;
+    }
+
+    List<object> GenerateRandom()
+    {
+        List<object> quads = new();
+        HashSet<Triangle> usedTriangles = new();
+
+        var cells = Center.GetHexSpiralInRange(range);
+        var rand = new Random(seed);
+
+        while (true)
+        {
+            var cell = cells[rand.Next(0, cells.Count)];
+            int randTri = rand.Next(0, 6);
+            var tri = cell.GetTriangle(scale, randTri);
+
+            if (usedTriangles.Contains(tri)) continue;
+
+            Triangle opposite = null;
+            int randomNum = rand.Next(0, 3) - 1;
+
+            for (int tries = 0; tries < 3; tries++)
+            {
+                randomNum = (randomNum + 1) % 3;
+                Triangle temp = null;
+                if (randomNum == 0)
+                {
+                    temp = cell.GetTriangle(scale, (randTri + 6 - 1) % 6);
+                }
+                else if (randomNum == 1)
+                {
+                    var neighbor = cell.GetNeighbor(randTri);
+                    if (Center.IsInRange(neighbor, range))
+                        temp = neighbor.GetOppositeTriangle(scale, randTri);
+                }
+                else if (randomNum == 2)
+                {
+                    temp = cell.GetTriangle(scale, (randTri + 6 + 1) % 6);
+                }
+                if (temp is null || usedTriangles.Contains(temp)) continue;
+                opposite = temp;
+                break;
+            }
+
+            if (opposite is null)
+            {
+                quads.Add(tri);
+                usedTriangles.Add(tri);
+            }
+            else
+            {
+                quads.Add(new Quad(tri, opposite));
+                usedTriangles.Add(tri);
+                usedTriangles.Add(opposite);
+            }
+
+            if (usedTriangles.Count >= cells.Count * 6) break; ;
         }
         return quads;
     }
@@ -310,18 +379,6 @@ public class GridBuilder : MonoBehaviour
         }
         return finalVerts;
     }
-
-    Vector2 GetCenter(List<Vector2> points)
-    {
-        Vector2 temp = new(0, 0);
-        foreach(var point in points)
-        {
-            temp += point;
-        }
-        return temp / points.Count;
-    }
-
-    
 
     #endregion
 
@@ -454,6 +511,9 @@ public class GridBuilder : MonoBehaviour
 
     #region Drawing
 
+    public bool DrawHoverNormal = true;
+    public float NormalLength = 1f;
+
     static Material lineMaterial;
     static void CreateLineMaterial()
     {
@@ -481,6 +541,17 @@ public class GridBuilder : MonoBehaviour
         lineMaterial.SetPass(0);
 
         //if (HoveredHex is not null) DrawSolidHex(HoveredHex, hoverColor);
+        if(DrawHoverNormal && MouseClosestFace is not null)
+        {
+            GL.Begin(GL.LINES);
+            GL.Color(Color.green);
+
+            GL.Vertex3(MouseHover.x, MouseHover.y, MouseHover.z);
+            var temp = MouseHover + HoverNormal * NormalLength;
+            GL.Vertex3(temp.x, temp.y, temp.z);
+
+            GL.End();
+        }
     }
 
     void DrawSolidHex(Hex hex, Color color)
