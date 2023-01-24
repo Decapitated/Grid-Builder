@@ -37,6 +37,7 @@ public class GridBuilder : MonoBehaviour
 
     public GameObject facePrefab;
     public Shader faceShader;
+    public Texture faceTexture;
 
     Hex Center => new(0f, 0f);
 
@@ -153,7 +154,9 @@ public class GridBuilder : MonoBehaviour
                 GameObject faceObj = Instantiate(facePrefab, transform, false);
                 faceObj.name = "Face";
                 faceObj.GetComponent<MeshFilter>().mesh = MeshDataToMesh(ObjectToMesh(pair.Value));
-                faceObj.GetComponent<Renderer>().material = new Material(faceShader);
+                var faceRenderer = faceObj.GetComponent<Renderer>();
+                faceRenderer.material = new Material(faceShader);
+                faceRenderer.material.SetTexture("_Texture2D", faceTexture);
                 Face faceScript = faceObj.GetComponent<Face>();
                 faceScript.gridBuilder = this;
                 faceScript.id = pair.Key;

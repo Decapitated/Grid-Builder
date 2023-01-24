@@ -730,15 +730,15 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 627260027}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 5, z: 5}
+  m_LocalPosition: {x: 29.7, y: 16.37, z: 0.4}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1814213130}
-  - {fileID: 1249642289}
-  - {fileID: 1760558065}
-  - {fileID: 1377389167}
   - {fileID: 1185396294}
+  - {fileID: 1760558065}
+  - {fileID: 1249642289}
+  - {fileID: 1377389167}
+  - {fileID: 1814213130}
   m_Father: {fileID: 1335957766}
   m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -2614,9 +2614,9 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 826179079}
   - {fileID: 1801970775}
   - {fileID: 554489862}
+  - {fileID: 826179079}
   - {fileID: 1935040078}
   m_Father: {fileID: 1335957766}
   m_RootOrder: -1
@@ -2796,6 +2796,10 @@ PrefabInstance:
       propertyPath: scale
       value: 10
       objectReference: {fileID: 0}
+    - target: {fileID: 9167755768508312174, guid: 2c4ef700f92fc1440b46e45e408db40a, type: 3}
+      propertyPath: faceTexture
+      value: 
+      objectReference: {fileID: 2800000, guid: 52a4b011929d95e49a28e832a5560efb, type: 3}
     - target: {fileID: 9167755768508312175, guid: 2c4ef700f92fc1440b46e45e408db40a, type: 3}
       propertyPath: m_RootOrder
       value: 6

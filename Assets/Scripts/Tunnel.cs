@@ -36,23 +36,24 @@ public class Tunnel : MonoBehaviour
     {
         portalCam.enabled = false;
         A = InputToPortal(inputPortals[0]);
+        A.renderTexture.Create();
+
         B = InputToPortal(inputPortals[1]);
+        B.renderTexture.Create();
     }
     Portal InputToPortal(PortalInput input) => new()
     {
         transform = input.transform,
         canView = input.canView,
         renderer = input.transform.GetComponent<Renderer>(),
-        renderTexture = new(Screen.width, Screen.height, 24, RenderTextureFormat.DefaultHDR)
+        renderTexture = new(Screen.width, Screen.height, 0)
     };
 
     void Start()
     {
-        A.renderTexture.Create();
         A.renderer.material = new Material(portalShader);
         A.renderer.material.SetTexture("_PortalTexture", B.renderTexture);
 
-        B.renderTexture.Create();
         B.renderer.material = new Material(portalShader);
         B.renderer.material.SetTexture("_PortalTexture", A.renderTexture);
     }
@@ -65,14 +66,15 @@ public class Tunnel : MonoBehaviour
 
     void OnRenderObject()
     {
-        if (B.canView && VisibleFromCamera(B.renderer, Camera.main))
-        {
-            RenderCamera(A, B);
-        }
 
         if (A.canView && VisibleFromCamera(A.renderer, Camera.main))
         {
             RenderCamera(B, A);
+        }
+
+        if (B.canView && VisibleFromCamera(B.renderer, Camera.main))
+        {
+            RenderCamera(A, B);
         }
     }
 
