@@ -43,14 +43,16 @@ public class Tunnel : MonoBehaviour
         transform = input.transform,
         canView = input.canView,
         renderer = input.transform.GetComponent<Renderer>(),
-        renderTexture = new(Screen.width, Screen.height, 0)
+        renderTexture = new(Screen.width, Screen.height, 24, RenderTextureFormat.DefaultHDR)
     };
 
     void Start()
     {
+        A.renderTexture.Create();
         A.renderer.material = new Material(portalShader);
         A.renderer.material.SetTexture("_PortalTexture", B.renderTexture);
 
+        B.renderTexture.Create();
         B.renderer.material = new Material(portalShader);
         B.renderer.material.SetTexture("_PortalTexture", A.renderTexture);
     }
