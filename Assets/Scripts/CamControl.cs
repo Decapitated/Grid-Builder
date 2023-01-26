@@ -9,6 +9,8 @@ public class CamControl : MonoBehaviour
     public float scrollScale = 0.1f;
     public float clickLength = 0.333f;
 
+    public float movementSpeed = 10f;
+
     public GridBuilder buildGrid;
 
     Camera camera;
@@ -18,6 +20,7 @@ public class CamControl : MonoBehaviour
         camera = GetComponentInChildren<Camera>();
     }
 
+    public bool firstPerson = false;
     // Movement speed in units per second.
     public float moveSpeed = 1.0F;
     public float minCameraY = 0.5f;
@@ -38,7 +41,7 @@ public class CamControl : MonoBehaviour
             journeyLength = Vector3.Distance(start, end);
 
         }
-        if(moving)
+        if (moving)
         {
             // Distance moved equals elapsed time times speed..
             float distCovered = (Time.time - startTime) * moveSpeed;
@@ -48,7 +51,15 @@ public class CamControl : MonoBehaviour
             transform.position = Vector3.Lerp(start, end, fractionOfJourney);
             if (Vector3.Distance(transform.position, end) <= 0.001) moving = false;
         }
+    }
 
+    void FixedUpdate()
+    {
+        if (firstPerson)
+        {
+            camera.transform.localPosition = Vector3.zero;
+            camera.transform.rotation = Quaternion.Euler(0, 0, 0);
+        }
         // Moved this value into a locally global position.
         UnityEngine.Vector2 mouseMove = GetMouseMovement();
 
@@ -59,23 +70,35 @@ public class CamControl : MonoBehaviour
             transform.Rotate(mouseMove.x * Time.deltaTime * Vector3.up, Space.World);
             transform.Rotate(-mouseMove.y * Time.deltaTime * Vector3.right, Space.Self);
             // Undo move if it messes up the camera.
-            if (camera.transform.position.y < transform.position.y + minCameraY) transform.localRotation = backupQuat;
+            if (!firstPerson && camera.transform.position.y < transform.position.y + minCameraY) transform.localRotation = backupQuat;
         }
 
         // Move camera man.
-        if (Input.GetMouseButton(0))
+        if (!firstPerson && Input.GetMouseButton(0))
         {
             transform.Translate(-mouseMove.x * Time.deltaTime * Vector3.right, Space.Self);
             transform.Translate(-mouseMove.y * Time.deltaTime * Vector3.up, Space.World);
         }
-        // Camera points at camer man.
-        camera.transform.LookAt(transform);
+
+        var keyDir = Vector3.zero;
+        if (Input.GetKey(KeyCode.W)) keyDir += Vector3.forward;
+        if (Input.GetKey(KeyCode.A)) keyDir += Vector3.left;
+        if (Input.GetKey(KeyCode.S)) keyDir += Vector3.back;
+        if (Input.GetKey(KeyCode.D)) keyDir += Vector3.right;
+        if (Input.GetKey(KeyCode.Space)) keyDir += Vector3.up;
+        if (Input.GetKey(KeyCode.LeftControl)) keyDir += Vector3.down;
+        transform.Translate((Input.GetKey(KeyCode.LeftShift)? 10f : 1f) * movementSpeed * Time.deltaTime * keyDir, Space.Self);
 
         Vector3 backupVec = camera.transform.position;
-        // Camera moves towards camera man.
-        camera.transform.Translate(Input.mouseScrollDelta.y * scrollScale * Vector3.forward);
-        // Undo move if it messes up the camera.
-        if (camera.transform.position.y < transform.position.y) camera.transform.position = backupVec;
+        // Camera points at camer man.
+        if (!firstPerson)
+        {
+            camera.transform.LookAt(transform);
+            // Camera moves towards camera man.
+            camera.transform.Translate(Input.mouseScrollDelta.y * scrollScale * Vector3.forward);
+            // Undo move if it messes up the camera.
+            if (camera.transform.position.y < transform.position.y) camera.transform.position = backupVec;
+        }
 
         float maxDistance = Hex.GetHexMaxSide(buildGrid.range, buildGrid.scale);
         transform.position = new(
