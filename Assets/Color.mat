@@ -8,8 +8,8 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Color
-  m_Shader: {fileID: -6465566751694194690, guid: 3159d48974c608f488e67661f8a14d46, type: 3}
-  m_Parent: {fileID: 2100000, guid: b1f93c0fd53649443935634020e7c431, type: 2}
+  m_Shader: {fileID: 7, guid: 0000000000000000f000000000000000, type: 0}
+  m_Parent: {fileID: 10302, guid: 0000000000000000f000000000000000, type: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
   m_InvalidKeywords: []

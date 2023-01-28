@@ -159,7 +159,7 @@ Transform:
   - {fileID: 637418307209712309}
   - {fileID: 1103990968656050975}
   m_Father: {fileID: 0}
-  m_RootOrder: 2
+  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!54 &1103990969094536161
 Rigidbody:
@@ -205,7 +205,9 @@ MonoBehaviour:
   mouseSpeed: 100
   mouseMultiplier: 10
   clickLength: 0.333
+  jumpPower: 5
   movementSpeed: 10
+  sprintMultiplier: 1.5
   cameraTarget: {fileID: 1103990968656050975}
 --- !u!95 &1103990969094536165
 Animator:
