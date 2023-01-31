@@ -23,4 +23,16 @@ public static class Utilities
     }
 
     public static Vector2 GetMouseMovement() => new(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
+
+    public static bool ScreenRaycast(Camera camera, out RaycastHit hitInfo, LayerMask layerMask)
+    {
+        Ray rayOrigin = camera.ScreenPointToRay(Input.mousePosition, Camera.MonoOrStereoscopicEye.Mono);
+        return Physics.Raycast(rayOrigin, out hitInfo, Mathf.Infinity, layerMask);
+    }
+
+    public static bool ScreenSphereCast(float radius, Camera camera, out RaycastHit hitInfo, LayerMask layerMask)
+    {
+        Ray rayOrigin = camera.ScreenPointToRay(Input.mousePosition, Camera.MonoOrStereoscopicEye.Mono);
+        return Physics.SphereCast(rayOrigin, radius, out hitInfo, Mathf.Infinity, layerMask);
+    }
 }
