@@ -44,7 +44,8 @@ public class Sword : MonoBehaviour
         renderer = GetComponentInChildren<Renderer>();
     }
 
-    // Update is called once per frame
+    public float yScale = 2f;
+    public float xScale = 0.75f;
     void Update()
     {
         RaycastHit hit;
@@ -94,16 +95,30 @@ public class Sword : MonoBehaviour
             }
             else transform.eulerAngles = currentRotation;
         }
-    
+        
         if(isHeld)
         {
+            /*
             Ray rayOrigin = camera.ScreenPointToRay(Input.mousePosition, Camera.MonoOrStereoscopicEye.Mono);
             var swordToCam = grabPoint.position - rayOrigin.origin;
             float distAlongLine = Vector3.Dot(swordToCam, rayOrigin.direction);
             Vector3 closestPoint = rayOrigin.origin + rayOrigin.direction * (distAlongLine * holdScale);
             heldTarget = closestPoint;
+            */
 
-            rigidbody.AddForceAtPosition((heldTarget - grabPoint.position).normalized * smoothTime, grabPoint.position, ForceMode.Force);
+            Vector2 mousePos = Input.mousePosition; mousePos.x -= (Screen.width / 2f); mousePos.y -= (Screen.height / 2f);
+            var worldPoint = TransformPoint(mousePos.normalized);
+            //heldTarget = worldPoint;
+            Ray rayOrigin = camera.ScreenPointToRay(Input.mousePosition, Camera.MonoOrStereoscopicEye.Mono);
+            var swordToCam = worldPoint - rayOrigin.origin;
+            float distAlongLine = Vector3.Dot(swordToCam, rayOrigin.direction);
+            Vector3 closestPoint = rayOrigin.origin + rayOrigin.direction * (distAlongLine * holdScale);
+            heldTarget = closestPoint;
+            var move = (heldTarget - grabPoint.position).normalized;
+            //rigidbody.velocity = new(move.x, move.y, move.z);
+            move.y *= yScale; move.x *= xScale; move.z *= xScale;
+            //transform.LookAt(heldTarget);
+            rigidbody.AddForceAtPosition(move * smoothTime, grabPoint.position, ForceMode.Force);
         }
     }
 
@@ -118,6 +133,7 @@ public class Sword : MonoBehaviour
         return grabPoint.position + rotation * new Vector3(point.x, 0, point.y);
     }
 
+    float MinMax(float value, float min, float max) => Mathf.Min(max, Mathf.Max(value, min));
 
     static Material lineMaterial;
     static void CreateLineMaterial()
@@ -169,17 +185,5 @@ public class Sword : MonoBehaviour
 
             GL.End();
         }
-        
-        GL.Begin(GL.LINES);
-        GL.Color(Color.blue);
-
-        GL.Vertex3(grabPoint.position.x, grabPoint.position.y, grabPoint.position.z);
-        Vector2 mousePos = Input.mousePosition;
-        mousePos.x -= (Screen.width / 2f);
-        mousePos.y -= (Screen.height / 2f);
-        var worldPoint = TransformPoint(mousePos);
-        GL.Vertex3(worldPoint.x, worldPoint.y, worldPoint.z);
-
-        GL.End();
     }
 }
