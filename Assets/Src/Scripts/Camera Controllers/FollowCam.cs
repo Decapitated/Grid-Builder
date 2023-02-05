@@ -10,20 +10,17 @@ public class FollowCam : MonoBehaviour
     private float smoothTime = 0.333333f;
     Vector3 velocity = Vector3.zero;
 
-    Camera camera;
+    public Camera camera;
 
     // Start is called before the first frame update
     void Start()
     {
-        camera = GetComponentInChildren<Camera>();
         SetViewDistance(currentViewIndex);
     }
 
     // Update is called once per frame
     void Update()
     {
-        transform.position = Vector3.SmoothDamp(transform.position, target.position, ref velocity, smoothTime);
-
         if (Input.GetKeyDown(KeyCode.V))
         {
             currentViewIndex = (currentViewIndex + 1) % ViewDistances.Length;
@@ -61,5 +58,10 @@ public class FollowCam : MonoBehaviour
     void SetViewDistance(int viewIndex)
     {
         camera.transform.localPosition = new(0, 0, -ViewDistances[viewIndex]);
+    }
+
+    public void MoveCamera(Vector3 target)
+    {
+        transform.position = Vector3.SmoothDamp(transform.position, target, ref velocity, smoothTime);
     }
 }
