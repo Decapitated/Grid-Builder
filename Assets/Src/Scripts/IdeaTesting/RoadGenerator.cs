@@ -8,10 +8,10 @@ using UnityEngine;
 using UnityEditor;
 #endif
 
-[RequireComponent(typeof(Bezier)),
- RequireComponent(typeof(MeshFilter)),
+[RequireComponent(typeof(MeshFilter)),
  RequireComponent(typeof(MeshRenderer)),
- ExecuteAlways]
+ RequireComponent(typeof(Bezier)),
+ ExecuteInEditMode]
 public class RoadGenerator : MonoBehaviour
 {
     [SerializeField, Min(0.1f)]
@@ -21,6 +21,8 @@ public class RoadGenerator : MonoBehaviour
     Bezier bezier;
     [SerializeField]
     MeshFilter meshFilter;
+    [SerializeField]
+    bool autoGenerate = false;
 
     void Start()
     {
@@ -30,12 +32,18 @@ public class RoadGenerator : MonoBehaviour
 
     void Update()
     {
+        if(autoGenerate && bezier.IsEdited)
+        {
+            bezier.IsEdited = false;
+            Generate();
+        }
         if(workDone)
         {
             print("Finished Generating.");
             var mesh = MeshDataToMesh(workMeshData);
+            mesh.Optimize();
 
-            meshFilter.mesh = mesh;
+            meshFilter.sharedMesh = mesh;
 
             WorkStarted = false;
             workDone = false;
@@ -48,7 +56,8 @@ public class RoadGenerator : MonoBehaviour
 
     public void Generate()
     {
-        if (WorkStarted) return;
+        if (WorkStarted || !bezier.IsValid) return;
+        ClearMesh();
         print("Generating...");
         WorkStarted = true;
         workDone = false;
@@ -69,7 +78,7 @@ public class RoadGenerator : MonoBehaviour
         };
 
         var quads = GetQuads();
-        foreach ( var quad in quads )
+        foreach (var quad in quads)
         {
             var length = (quad[1] - quad[0]).magnitude;
             length /= maxLength;
@@ -90,6 +99,11 @@ public class RoadGenerator : MonoBehaviour
         workMeshData = meshData;
 
         workDone = true;
+    }
+
+    public void ClearMesh()
+    {
+        if(meshFilter.sharedMesh != null) meshFilter.sharedMesh.Clear();
     }
 
     Mesh MeshDataToMesh(MeshData meshData)
@@ -122,8 +136,8 @@ public class RoadGenerator : MonoBehaviour
         Vector3 prevPerp = Vector3.zero;
         for (int i = 0; i < points.Count; i++)
         {
-            var dir = (i < points.Count - 1) ? points[i + 1] - points[i] : points[i] - points[i - 1];
-            //var dir = (i == 0) ? points[i + 1] - points[i] : points[i] - points[i - 1];
+            //var dir = (i < points.Count - 1) ? points[i + 1] - points[i] : points[i] - points[i - 1];
+            var dir = (i == 0) ? points[i + 1] - points[i] : points[i] - points[i - 1];
             var perp = Vector3.Cross(Vector3.up, dir);
             if(i > 0 && i < points.Count - 1) perp = (perp + prevPerp) / 2f;
 
@@ -161,9 +175,10 @@ public class RoadGeneratorEditor : Editor
 
         var roadGenerator = target as RoadGenerator;
 
-        if (!roadGenerator.WorkStarted && GUILayout.Button("Generate Mesh"))
+        if (!roadGenerator.WorkStarted)
         {
-            roadGenerator.Generate();
+            if(GUILayout.Button("Generate Mesh")) roadGenerator.Generate();
+            if (GUILayout.Button("Clear Mesh")) roadGenerator.ClearMesh();
         }
     }
 }
