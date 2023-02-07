@@ -12,21 +12,39 @@ public class Bezier : MonoBehaviour
 {
     [SerializeField, HideInInspector]
     private List<Vector3> points = new();
+    [SerializeField, HideInInspector]
+    private Dictionary<int, Quaternion> rotations = new();
+
+    public Quaternion GetRotation(int index) => rotations[index];
+    public void SetRotation(int index, Quaternion rotation) => rotations[index] = rotation;
+
     [SerializeField]
     private bool isClosed = false;
-    [SerializeField, Min(1)]
-    private int numSegments = 12;
-    int prevNumSegments = 12;
+
+    [SerializeField, Min(1f)]
+    private float resolution = 1;
+    float prevResolution = 1;
+
+    [SerializeField, Min(0.1f)]
+    private float spacing = 0.1f;
+    public float Spacing { get { return spacing; } }
+    float prevSpacing = 0.1f;
+
     public bool IsValid { get { return points.Count > 0 && (points.Count - 1) % 3 == 0; } }
     public bool IsEdited { get; set; } = false;
     public bool IsClosed { get { return isClosed; } }
 
     void Update()
     {
-        if(numSegments != prevNumSegments)
+        if(resolution != prevResolution)
         {
             IsEdited = true;
-            prevNumSegments = numSegments;
+            prevResolution = resolution;
+        }
+        if (spacing != prevSpacing)
+        {
+            IsEdited = true;
+            prevSpacing = spacing;
         }
     }
 
@@ -36,6 +54,7 @@ public class Bezier : MonoBehaviour
         {
             foreach(int x in Enumerable.Range(0, 4))
                 points.Add(new(x, 0));
+            rotations.Add(0, Quaternion.identity);
         }
         else
         {
@@ -44,6 +63,7 @@ public class Bezier : MonoBehaviour
             points.Add(points[^1] + (dir / 2));
             points.Add(points[^1] + (dir / 2));
         }
+        rotations.Add(points.Count - 1, Quaternion.identity);
     }
 
     public void RemovePoint()
@@ -51,11 +71,15 @@ public class Bezier : MonoBehaviour
         if (points.Count != 0) points.RemoveRange(points.Count - 3, 3);
     }
 
-    public void Clear() => points.Clear();
+    public void Clear()
+    {
+        points.Clear();
+        rotations.Clear();
+    }
 
     public List<Vector3> GetControlPoints() => points;
 
-    public List<Vector3> GetCurvePoints() => BezierCurve.GetPoints(points, numSegments, isClosed);
+    public List<Vector3> GetCurvePoints() => BezierCurve.GetPointsEvenly(points, spacing, resolution, isClosed);
 }
 
 #if UNITY_EDITOR
@@ -77,28 +101,30 @@ public class BezierEditor : Editor
     {
         var bezier = target as Bezier;
         var points = bezier.GetControlPoints();
-
+        if (points.Count <= 0) return;
         for (int i = 0; i <= (points.Count - 1) / 3; i++)
         {
+            Vector3 a, b, c, d;
             if (i == (points.Count - 1) / 3)
             {
                 if (!bezier.IsClosed) continue;
-                var _a = points[i * 3];
-                var _b = _a + (_a - points[i * 3 - 1]);
-                var _d = points[0];
-                var _c = _d + (_d - points[1]);
-
-                Handles.color = Color.red;
-                Handles.DrawLine(_a, _b, 5f);
-                Handles.DrawLine(_c, _d, 5f);
-                Handles.DrawBezier(_a, _d, _b, _c, Color.blue, null, 5f);
-
-                continue;
+                a = points[i * 3];
+                b = a + (a - points[i * 3 - 1]);
+                d = points[0];
+                c = d + (d - points[1]);
             }
-            var a = points[i * 3];
-            var b = points[i * 3 + 1];
-            var c = points[i * 3 + 2];
-            var d = points[i * 3 + 3];
+            else
+            {
+                a = points[i * 3];
+                b = points[i * 3 + 1];
+                c = points[i * 3 + 2];
+                d = points[i * 3 + 3];
+            }
+
+            a = bezier.transform.TransformPoint(a);
+            b = bezier.transform.TransformPoint(b);
+            c = bezier.transform.TransformPoint(c);
+            d = bezier.transform.TransformPoint(d);
 
             Handles.color = Color.red;
             Handles.DrawLine(a, b, 5f);
@@ -111,16 +137,26 @@ public class BezierEditor : Editor
         {
             EditorGUI.BeginChangeCheck();
             var worldPoint = bezier.transform.TransformPoint(point);
-            //var newPoint = Handles.PositionHandle(worldPoint, Quaternion.identity);
             Handles.color = (index % 3 == 0) ? Color.green : Color.red;
             float size = (index % 3 == 0) ? 0.25f : 0.2f;
-            var newPoint = Handles.FreeMoveHandle(worldPoint, HandleUtility.GetHandleSize(worldPoint) * size, Vector3.one, Handles.SphereHandleCap);
+            Handles.FreeMoveHandle(worldPoint, HandleUtility.GetHandleSize(worldPoint) * 0.2f, Vector3.one, Handles.SphereHandleCap);
+            Vector3 newPoint = worldPoint;
+            Quaternion newQuaternion = Quaternion.identity;
+            if(index % 3 == 0)
+            {
+                newQuaternion = bezier.GetRotation(index);
+                Handles.TransformHandle(ref newPoint, ref newQuaternion);
+            }
+            else
+            {
+                newPoint = Handles.PositionHandle(worldPoint, Quaternion.identity);
+            }
             if (EditorGUI.EndChangeCheck())
             {
                 bezier.IsEdited = true;
                 Undo.RecordObject(bezier, "Update point position.");
                 newPoint = bezier.transform.InverseTransformPoint(newPoint);
-                if (index % 3 != 0)
+                if (index % 3 != 0) // If not anchor point. update the opposite control point.
                 {
                     if(index != points.Count - 2 && (index % 3) % 2 == 0)
                     {
@@ -130,7 +166,7 @@ public class BezierEditor : Editor
                         points[index - 2] = points[index - 1] + (points[index - 1] - newPoint);
                     }
                 }
-                else
+                else // Move control points with anchor point.
                 {
                     if(index != points.Count - 1)
                     {
@@ -140,11 +176,47 @@ public class BezierEditor : Editor
                     {
                         points[index - 1] = newPoint + (points[index - 1] - points[index]);
                     }
+                    bezier.SetRotation(index, newQuaternion);
                 }
 
                 points[index] = newPoint;
             }
             index++;
+        }
+        if(bezier.IsClosed)
+        {
+            var _a = points[^1];
+            var _b = _a + (_a - points[^2]);
+
+            var _d = points[0];
+            var _c = _d + (_d - points[1]);
+
+            Handles.color = Color.red;
+            EditorGUI.BeginChangeCheck();
+            var worldPoint = bezier.transform.TransformPoint(_b);
+            Handles.FreeMoveHandle(worldPoint, HandleUtility.GetHandleSize(worldPoint) * 0.2f, Vector3.one, Handles.SphereHandleCap);
+            var newPoint = Handles.PositionHandle(worldPoint, Quaternion.identity);
+            if (EditorGUI.EndChangeCheck())
+            {
+                bezier.IsEdited = true;
+                Undo.RecordObject(bezier, "Update point position.");
+                newPoint = bezier.transform.InverseTransformPoint(newPoint);
+
+                points[^2] = points[^1] + (points[^1] - newPoint);
+            }
+
+            EditorGUI.BeginChangeCheck();
+            worldPoint = bezier.transform.TransformPoint(_c);
+            Handles.FreeMoveHandle(worldPoint, HandleUtility.GetHandleSize(worldPoint) * 0.2f, Vector3.one, Handles.SphereHandleCap);
+            newPoint = Handles.PositionHandle(worldPoint, Quaternion.identity);
+            if (EditorGUI.EndChangeCheck())
+            {
+                bezier.IsEdited = true;
+                Undo.RecordObject(bezier, "Update point position.");
+                newPoint = bezier.transform.InverseTransformPoint(newPoint);
+
+                points[1] = points[0] + (points[0] - newPoint);
+            }
         }
     }
 

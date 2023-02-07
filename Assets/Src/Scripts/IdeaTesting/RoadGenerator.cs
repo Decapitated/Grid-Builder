@@ -16,6 +16,9 @@ public class RoadGenerator : MonoBehaviour
 {
     [SerializeField, Min(0.1f)]
     private float roadWidth = 1f;
+    [SerializeField]
+    float textureTiling = 1f;
+    int textureRepeat = 1;
 
     [SerializeField]
     Bezier bezier;
@@ -44,6 +47,7 @@ public class RoadGenerator : MonoBehaviour
             mesh.Optimize();
 
             meshFilter.sharedMesh = mesh;
+            GetComponent<MeshRenderer>().sharedMaterial.mainTextureScale = new(1, textureRepeat);
 
             WorkStarted = false;
             workDone = false;
@@ -78,14 +82,18 @@ public class RoadGenerator : MonoBehaviour
         };
 
         var quads = GetQuads();
+        var index = 0;
         foreach (var quad in quads)
         {
-            var length = (quad[1] - quad[0]).magnitude;
-            length /= maxLength;
-            var a = AddPointToMeshData(quad[0], new(0, 0), meshData);
-            var b = AddPointToMeshData(quad[1], new(0, length), meshData);
-            var c = AddPointToMeshData(quad[2], new(1, length), meshData);
-            var d = AddPointToMeshData(quad[3], new(1, 0), meshData);
+            float lenA = index / (float)quads.Count;
+            lenA = 1 - MathF.Abs(2 * lenA - 1);
+            float lenB = (index + 1) / (float)quads.Count;
+            lenB = 1 - MathF.Abs(2 * lenB - 1);
+
+            var a = AddPointToMeshData(quad[0], new(0, lenA), meshData);
+            var b = AddPointToMeshData(quad[1], new(0, lenB), meshData);
+            var c = AddPointToMeshData(quad[2], new(1, lenB), meshData);
+            var d = AddPointToMeshData(quad[3], new(1, lenA), meshData);
 
             meshData.triangles.Add(a);
             meshData.triangles.Add(c);
@@ -94,9 +102,11 @@ public class RoadGenerator : MonoBehaviour
             meshData.triangles.Add(a);
             meshData.triangles.Add(d);
             meshData.triangles.Add(c);
+            index++;
         }
 
         workMeshData = meshData;
+        textureRepeat = Mathf.RoundToInt(textureTiling * quads.Count * bezier.Spacing * 0.05f);
 
         workDone = true;
     }
@@ -133,31 +143,33 @@ public class RoadGenerator : MonoBehaviour
 
         var points = bezier.GetCurvePoints();
 
-        Vector3 prevPerp = Vector3.zero;
         for (int i = 0; i < points.Count; i++)
         {
-            //var dir = (i < points.Count - 1) ? points[i + 1] - points[i] : points[i] - points[i - 1];
-            var dir = (i == 0) ? points[i + 1] - points[i] : points[i] - points[i - 1];
+            var dirToThis = points[i] - points[(i + points.Count - 1) % points.Count];
+            var dirToNext = points[(i + 1) % points.Count] - points[i];
+            var dir = (dirToThis + dirToNext) / 2f;
+            if (i == 0) dir = points[1] - points[0];
+            else if (!bezier.IsClosed && i == points.Count - 1) dir = points[^1] - points[^2];
             var perp = Vector3.Cross(Vector3.up, dir);
-            if(i > 0 && i < points.Count - 1) perp = (perp + prevPerp) / 2f;
 
-            prevPerp = perp;
             perp = perp.normalized;
             lines.Add(new(points[i] - perp * (roadWidth / 2f), points[i] + perp * (roadWidth / 2f)));
         }
 
         var quads = new List<List<Vector3>>();
-        for (int i = 0; i < lines.Count - 1; i++)
+        for (int i = 0; i < lines.Count; i++)
         {
-            var quad = new List<Vector3>();
-            var aLine = lines[i];
-            var bLine = lines[i + 1];
-            quad.AddRange(new Vector3[]
+            if(i < lines.Count - 1 || bezier.IsClosed)
             {
-                aLine.Item2, bLine.Item2, bLine.Item1, aLine.Item1
-            });
-
-            quads.Add(quad);
+                var quad = new List<Vector3>();
+                var aLine = lines[i];
+                var bLine = lines[(i + 1) % lines.Count];
+                quad.AddRange(new Vector3[]
+                {
+                    aLine.Item2, bLine.Item2, bLine.Item1, aLine.Item1
+                });
+                quads.Add(quad);
+            }
         }
 
         return quads;
