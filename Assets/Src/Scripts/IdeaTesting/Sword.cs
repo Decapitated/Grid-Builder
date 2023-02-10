@@ -32,6 +32,7 @@ public class Sword : MonoBehaviour
     bool isHeld = false;
     Vector3 heldTarget = Vector3.zero;
 
+    public float speed = 1f;
     public float maxHeight = 2f;
     public float holdScale = 1f;
     public float smoothTime = 1f;
@@ -55,6 +56,8 @@ public class Sword : MonoBehaviour
 
     void Update()
     {
+        var tempTex = followCam.camera.targetTexture;
+        followCam.camera.targetTexture = null;
         RaycastHit hit;
         if (Utilities.ScreenSphereCast(0.1f, followCam.camera, out hit, layerMask))
         {
@@ -63,6 +66,7 @@ public class Sword : MonoBehaviour
             isHovered = true;
         }
         else isHovered = false;
+        followCam.camera.targetTexture = tempTex;
 
         if (Utilities.GetMouseButtonClicked(0))
         {
@@ -78,6 +82,11 @@ public class Sword : MonoBehaviour
                 }
             }
             if(isHeld && !justGrabbed) isHeld = false;
+        }
+
+        if(Input.GetKey(KeyCode.W)){
+            transform.position += transform.forward * speed * Time.deltaTime;
+            
         }
 
         /*if(rigidbody.velocity.magnitude <= 0.1 && transform.rotation.eulerAngles.magnitude > 0.01)
@@ -108,7 +117,7 @@ public class Sword : MonoBehaviour
         if(isHeld)
         {
             Vector2 mousePos = Input.mousePosition; mousePos.x -= (Screen.width / 2f); mousePos.y -= (Screen.height / 2f);
-            var center = followCam.transform.position;
+            var center = transform.position;
             var worldPoint = TransformPoint(mousePos.normalized, center);
             heldTarget = worldPoint;
             /*//heldTarget = GetClosestPointToScreenRay(worldPoint, followCam.camera);
